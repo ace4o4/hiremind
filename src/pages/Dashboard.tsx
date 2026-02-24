@@ -5,16 +5,20 @@ import { Button } from "@/components/ui/button";
 import {
   Zap, Upload, FileText, Play, BarChart3, Clock,
   Target, TrendingUp, Brain, Users, Mic, ArrowRight,
-  ChevronRight, Star
+  ChevronRight, Star, Settings
 } from "lucide-react";
+import { GlassCard, AmbientOrb, FloatingParticles, CursorGlow } from "@/components/LiquidGlass";
 
+/* ===== SIDEBAR ===== */
 const Sidebar = () => (
-  <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar p-4 lg:flex">
-    <Link to="/" className="mb-8 flex items-center gap-2 px-2">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
-        <Zap className="h-4 w-4 text-sidebar-primary-foreground" />
+  <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col glass-sidebar p-4 lg:flex">
+    <Link to="/" className="mb-8 flex items-center gap-2.5 px-2">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/20 border border-primary/30">
+        <Zap className="h-4 w-4 text-primary" />
       </div>
-      <span className="font-display text-lg font-bold text-sidebar-foreground">InterviewForge</span>
+      <span className="font-display text-lg font-bold text-sidebar-foreground">
+        Interview<span className="text-primary">Guru</span>
+      </span>
     </Link>
 
     <nav className="flex flex-1 flex-col gap-1">
@@ -28,10 +32,10 @@ const Sidebar = () => (
       ].map((item) => (
         <button
           key={item.label}
-          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-300 ${
             item.active
-              ? "bg-sidebar-accent text-sidebar-primary"
-              : "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              ? "glass-card bg-primary/5 text-primary border-primary/20 glow-teal"
+              : "text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-white/[0.03] border border-transparent"
           }`}
         >
           <item.icon className="h-4 w-4" />
@@ -40,98 +44,107 @@ const Sidebar = () => (
       ))}
     </nav>
 
-    <div className="rounded-xl border border-sidebar-border bg-sidebar-accent p-4">
-      <p className="text-xs font-semibold text-sidebar-primary">Pro Plan</p>
-      <p className="mt-1 text-xs text-sidebar-foreground/60">Unlimited interviews</p>
-      <div className="mt-2 h-1.5 w-full rounded-full bg-sidebar-border">
-        <div className="h-full w-3/4 rounded-full bg-sidebar-primary" />
+    <div className="glass-card rounded-xl p-4">
+      <p className="text-xs font-semibold text-primary text-glow">Pro Plan</p>
+      <p className="mt-1 text-xs text-sidebar-foreground/50">Unlimited interviews</p>
+      <div className="mt-3 h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: "75%" }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
+          className="h-full rounded-full bg-gradient-to-r from-primary to-teal-glow"
+          style={{ boxShadow: "0 0 10px hsl(168 100% 48% / 0.4)" }}
+        />
       </div>
-      <p className="mt-1 text-[10px] text-sidebar-foreground/40">18 of 24 sessions this month</p>
+      <p className="mt-1.5 text-[10px] text-sidebar-foreground/30">18 of 24 sessions this month</p>
     </div>
   </aside>
 );
 
+/* ===== STATS ===== */
 const stats = [
-  { label: "Sessions", value: "24", icon: Play, change: "+6 this week" },
-  { label: "Avg Score", value: "78", icon: TrendingUp, change: "+12 pts" },
-  { label: "Streak", value: "7 days", icon: Star, change: "Personal best!" },
-  { label: "Skills Improved", value: "5", icon: Target, change: "STAR, System Design..." },
+  { label: "Sessions", value: "24", icon: Play, change: "+6 this week", color: "teal" as const },
+  { label: "Avg Score", value: "78", icon: TrendingUp, change: "+12 pts", color: "purple" as const },
+  { label: "Streak", value: "7 days", icon: Star, change: "Personal best!", color: "warm" as const },
+  { label: "Skills Improved", value: "5", icon: Target, change: "STAR, System Design...", color: "teal" as const },
 ];
 
+/* ===== SETUP CARD ===== */
 const SetupCard = () => {
   const [step, setStep] = useState<"upload" | "configure" | "ready">("upload");
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-border bg-card p-8 shadow-card"
-    >
+    <GlassCard className="p-8" glowColor="teal">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 glow-teal">
           <Mic className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <h2 className="font-display text-xl font-bold text-card-foreground">Start New Mock Interview</h2>
+          <h2 className="font-display text-xl font-bold text-foreground">Start New Mock Interview</h2>
           <p className="text-sm text-muted-foreground">Upload your resume & paste the job description</p>
         </div>
       </div>
 
+      {/* Step indicator */}
       <div className="mt-6 flex gap-2">
-        {["upload", "configure", "ready"].map((s, i) => (
+        {(["upload", "configure", "ready"] as const).map((s, i) => (
           <div key={s} className="flex flex-1 items-center gap-2">
-            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-              step === s ? "bg-primary text-primary-foreground" :
-              i < ["upload", "configure", "ready"].indexOf(step)
-                ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-all duration-500 ${
+              step === s
+                ? "bg-primary text-primary-foreground glow-teal"
+                : i < ["upload", "configure", "ready"].indexOf(step)
+                  ? "bg-primary/20 text-primary"
+                  : "bg-white/[0.06] text-muted-foreground"
             }`}>
               {i + 1}
             </div>
             <span className="text-xs font-medium text-muted-foreground capitalize hidden sm:inline">{s}</span>
-            {i < 2 && <ChevronRight className="h-3 w-3 text-muted-foreground/40 ml-auto" />}
+            {i < 2 && <ChevronRight className="h-3 w-3 text-muted-foreground/30 ml-auto" />}
           </div>
         ))}
       </div>
 
       {step === "upload" && (
-        <div className="mt-6 space-y-4">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
           <div
-            className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border p-8 transition-colors hover:border-primary/40 hover:bg-primary/5"
+            className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border border-dashed border-white/[0.1] p-8 transition-all hover:border-primary/30 hover:bg-primary/[0.03] group"
             onClick={() => setStep("configure")}
           >
-            <Upload className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm font-medium text-card-foreground">Drop your resume here</p>
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 group-hover:glow-teal transition-all">
+              <Upload className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+            </div>
+            <p className="text-sm font-medium text-foreground">Drop your resume here</p>
             <p className="text-xs text-muted-foreground">PDF, DOCX, or paste text</p>
           </div>
-          <div className="rounded-xl border border-border p-4">
-            <label className="text-sm font-medium text-card-foreground">Job Description</label>
+          <div className="glass-card rounded-xl p-4">
+            <label className="text-sm font-medium text-foreground">Job Description</label>
             <textarea
-              className="mt-2 w-full rounded-lg border border-input bg-background p-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="mt-2 w-full rounded-lg bg-white/[0.03] border border-white/[0.08] p-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/20 transition-all"
               rows={3}
               placeholder="Paste the job description or LinkedIn URL..."
               onFocus={() => setStep("configure")}
             />
           </div>
-        </div>
+        </motion.div>
       )}
 
       {step === "configure" && (
-        <div className="mt-6 space-y-4">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             {[
               { label: "Interview Type", options: ["Behavioral", "Technical", "System Design", "Mixed"] },
               { label: "Difficulty", options: ["Junior", "Mid-Level", "Senior", "Staff+"] },
             ].map((field) => (
               <div key={field.label}>
-                <label className="text-sm font-medium text-card-foreground">{field.label}</label>
+                <label className="text-sm font-medium text-foreground">{field.label}</label>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {field.options.map((opt, i) => (
                     <button
                       key={opt}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
                         i === 0
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border text-muted-foreground hover:border-primary/40"
+                          ? "bg-primary/15 text-primary border border-primary/30 glow-teal"
+                          : "btn-glass text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       {opt}
@@ -141,32 +154,35 @@ const SetupCard = () => {
               </div>
             ))}
           </div>
-          <div className="flex items-center gap-3 rounded-xl bg-primary/5 p-4">
+          <div className="flex items-center gap-3 glass-card rounded-xl p-4 border-primary/20">
             <Brain className="h-5 w-5 text-primary" />
             <div>
-              <p className="text-sm font-medium text-card-foreground">Memory Active</p>
+              <p className="text-sm font-medium text-foreground">Memory Active</p>
               <p className="text-xs text-muted-foreground">2 past weaknesses detected: STAR format, conciseness</p>
             </div>
           </div>
-          <Button variant="hero" className="w-full" size="lg" onClick={() => setStep("ready")}>
+          <button
+            className="btn-liquid w-full rounded-xl py-3 text-sm font-bold text-primary-foreground flex items-center justify-center gap-2"
+            onClick={() => setStep("ready")}
+          >
             Analyze & Generate Questions
-            <ArrowRight className="ml-1 h-4 w-4" />
-          </Button>
-        </div>
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </motion.div>
       )}
 
       {step === "ready" && (
-        <div className="mt-6 space-y-4">
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
+          <div className="glass-card rounded-xl p-4 border-primary/20">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-primary" />
-              <p className="text-sm font-semibold text-card-foreground">Interview Blueprint Ready</p>
+              <p className="text-sm font-semibold text-foreground">Interview Blueprint Ready</p>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">12 questions generated • 35 min estimated • Behavioral + Technical</p>
             <div className="mt-3 grid grid-cols-5 gap-1">
               {["Content", "Structure", "Delivery", "Non-verbal", "Relevance"].map((s) => (
                 <div key={s} className="text-center">
-                  <div className="mx-auto h-8 w-8 rounded-full border-2 border-primary/30 flex items-center justify-center text-[10px] font-bold text-primary">
+                  <div className="mx-auto h-8 w-8 rounded-full border border-primary/30 flex items-center justify-center text-[10px] font-bold text-primary bg-primary/5">
                     {Math.floor(Math.random() * 30 + 60)}
                   </div>
                   <p className="mt-1 text-[9px] text-muted-foreground">{s}</p>
@@ -174,48 +190,63 @@ const SetupCard = () => {
               ))}
             </div>
           </div>
-          <Button variant="hero" size="lg" className="w-full animate-pulse-glow">
-            <Play className="mr-1 h-4 w-4" /> Start Interview Now
-          </Button>
-        </div>
+          <button className="btn-liquid w-full rounded-xl py-3.5 text-sm font-bold text-primary-foreground flex items-center justify-center gap-2 animate-pulse-glow">
+            <Play className="h-4 w-4" /> Start Interview Now
+          </button>
+        </motion.div>
       )}
-    </motion.div>
+    </GlassCard>
   );
 };
 
+/* ===== RECENT SESSION ===== */
 const RecentSession = ({ title, score, date, tags }: { title: string; score: number; date: string; tags: string[] }) => (
-  <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:shadow-card-hover hover:-translate-y-0.5">
-    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl font-display text-lg font-black ${
-      score >= 80 ? "bg-primary/10 text-primary" : score >= 60 ? "bg-accent/10 text-accent" : "bg-destructive/10 text-destructive"
+  <GlassCard className="flex items-center gap-4 p-4 cursor-pointer" glowColor={score >= 80 ? "teal" : "purple"}>
+    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl font-display text-lg font-black border ${
+      score >= 80
+        ? "bg-primary/10 text-primary border-primary/20"
+        : score >= 60
+          ? "bg-purple/10 text-purple border-purple/20"
+          : "bg-destructive/10 text-destructive border-destructive/20"
     }`}>
       {score}
     </div>
     <div className="flex-1 min-w-0">
-      <p className="font-medium text-card-foreground truncate">{title}</p>
+      <p className="font-medium text-foreground truncate">{title}</p>
       <div className="mt-1 flex items-center gap-2">
         <span className="text-xs text-muted-foreground">{date}</span>
         {tags.map((t) => (
-          <span key={t} className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{t}</span>
+          <span key={t} className="rounded-md bg-white/[0.04] border border-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{t}</span>
         ))}
       </div>
     </div>
-    <Button variant="ghost" size="icon">
-      <ChevronRight className="h-4 w-4" />
-    </Button>
-  </div>
+    <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
+  </GlassCard>
 );
 
+/* ===== MAIN DASHBOARD ===== */
 const Dashboard = () => (
-  <div className="min-h-screen bg-background">
+  <div className="min-h-screen bg-deep-space">
+    <CursorGlow />
     <Sidebar />
-    <main className="lg:pl-64">
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-sm px-6">
+
+    {/* Background ambient effects */}
+    <div className="fixed inset-0 pointer-events-none overflow-hidden">
+      <AmbientOrb color="teal" size={500} className="top-[-10%] right-[20%]" />
+      <AmbientOrb color="purple" size={400} className="bottom-[10%] left-[30%]" delay={2} />
+    </div>
+
+    <main className="lg:pl-64 relative z-10">
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between glass-nav px-6">
         <div>
           <h1 className="font-display text-lg font-bold text-foreground">Welcome back, Alex 👋</h1>
           <p className="text-xs text-muted-foreground">7-day streak • Keep going!</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">A</div>
+        <div className="flex items-center gap-3">
+          <button className="btn-glass rounded-lg p-2">
+            <Settings className="h-4 w-4 text-muted-foreground" />
+          </button>
+          <div className="h-8 w-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-xs font-bold text-primary glow-teal">A</div>
         </div>
       </header>
 
@@ -227,25 +258,27 @@ const Dashboard = () => (
               key={stat.label}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="rounded-xl border border-border bg-card p-5 shadow-card"
+              transition={{ delay: i * 0.1, type: "spring" }}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">{stat.label}</span>
-                <stat.icon className="h-4 w-4 text-primary" />
-              </div>
-              <p className="mt-2 font-display text-2xl font-black text-card-foreground">{stat.value}</p>
-              <p className="mt-1 text-xs text-primary">{stat.change}</p>
+              <GlassCard className="p-5" glowColor={stat.color}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">{stat.label}</span>
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
+                    <stat.icon className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                </div>
+                <p className="mt-2 font-display text-2xl font-black text-foreground">{stat.value}</p>
+                <p className="mt-1 text-xs text-primary text-glow">{stat.change}</p>
+              </GlassCard>
             </motion.div>
           ))}
         </div>
 
-        {/* Main content grid */}
+        {/* Main content */}
         <div className="grid gap-6 lg:grid-cols-5">
           <div className="lg:col-span-3">
             <SetupCard />
           </div>
-
           <div className="lg:col-span-2 space-y-4">
             <h3 className="font-display text-sm font-semibold text-foreground">Recent Sessions</h3>
             <RecentSession title="Amazon SDE-2 Behavioral" score={82} date="Today" tags={["Behavioral", "Senior"]} />
