@@ -1,203 +1,118 @@
 import { useRef, useState, useCallback, useEffect } from "react";
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { motion, useMotionValue, useSpring, useTransform, useScroll } from "framer-motion";
 import { cn } from "@/lib/utils";
 
-/* ===== Cursor Glow Tracker ===== */
-export const CursorGlow = () => {
-  const [pos, setPos] = useState({ x: -100, y: -100 });
+/* ===== Cursor Glow Tracker (Adapted for Light Theme) ===== */
+export const CursorGlow = () => null;
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => setPos({ x: e.clientX, y: e.clientY });
-    window.addEventListener("mousemove", handler);
-    return () => window.removeEventListener("mousemove", handler);
-  }, []);
-
-  return (
-    <div
-      className="pointer-events-none fixed z-[9999] hidden md:block"
-      style={{
-        left: pos.x - 16,
-        top: pos.y - 16,
-        width: 32,
-        height: 32,
-        borderRadius: "50%",
-        border: "1.5px solid hsl(168 100% 48% / 0.5)",
-        boxShadow: "0 0 20px 4px hsl(168 100% 48% / 0.15)",
-        transition: "left 0.08s ease-out, top 0.08s ease-out",
-      }}
-    />
-  );
-};
-
-/* ===== Glass Card with Physics Tilt ===== */
-interface GlassCardProps {
+/* ===== NEUMORPHIC CARD ===== */
+interface NeuCardProps {
   children: React.ReactNode;
   className?: string;
-  tiltIntensity?: number;
-  glowColor?: "teal" | "purple" | "warm";
+  variant?: "flat" | "pressed";
   onClick?: () => void;
+  as?: any;
+  [key: string]: any;
 }
 
-export const GlassCard = ({
+export const NeuCard = ({
   children,
   className,
-  tiltIntensity = 5,
-  glowColor = "teal",
+  variant = "flat",
   onClick,
-}: GlassCardProps) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const [ripple, setRipple] = useState<{ x: number; y: number } | null>(null);
-
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [tiltIntensity, -tiltIntensity]), {
-    stiffness: 300,
-    damping: 30,
-  });
-  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-tiltIntensity, tiltIntensity]), {
-    stiffness: 300,
-    damping: 30,
-  });
-
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (!ref.current) return;
-      const rect = ref.current.getBoundingClientRect();
-      x.set((e.clientX - rect.left) / rect.width - 0.5);
-      y.set((e.clientY - rect.top) / rect.height - 0.5);
-    },
-    [x, y]
-  );
-
-  const handleMouseLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
-
-  const handleClick = (e: React.MouseEvent) => {
-    if (!ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    setRipple({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-    setTimeout(() => setRipple(null), 600);
-    onClick?.();
-  };
-
-  const glowClasses = {
-    teal: "hover:shadow-[0_0_50px_-8px_hsl(168_100%_48%/0.3)]",
-    purple: "hover:shadow-[0_0_50px_-8px_hsl(270_70%_65%/0.3)]",
-    warm: "hover:shadow-[0_0_50px_-8px_hsl(30_100%_60%/0.3)]",
-  };
-
+  as: Component = "div",
+  ...props
+}: NeuCardProps) => {
+  const baseClass = variant === "pressed" ? "neu-pressed" : "neu-flat";
+  
   return (
-    <motion.div
-      ref={ref}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onClick={handleClick}
-      style={{ rotateX, rotateY, transformPerspective: 800 }}
-      className={cn("glass-card rounded-2xl", glowClasses[glowColor], className)}
+    <Component
+      onClick={onClick}
+      className={cn(baseClass, "p-6", className)}
+      {...props}
     >
       {children}
-      {ripple && (
-        <span
-          className="absolute pointer-events-none rounded-full bg-white/10"
-          style={{
-            left: ripple.x - 10,
-            top: ripple.y - 10,
-            width: 20,
-            height: 20,
-            animation: "ripple 0.6s ease-out forwards",
-          }}
-        />
-      )}
-    </motion.div>
+    </Component>
   );
 };
 
-/* ===== Ambient Orb (Background Decoration) ===== */
-interface AmbientOrbProps {
-  color?: "teal" | "purple";
-  size?: number;
+/* ===== NEUMORPHIC BUTTON ===== */
+interface NeuButtonProps {
+  children: React.ReactNode;
   className?: string;
-  delay?: number;
+  variant?: "default" | "primary" | "icon";
+  onClick?: () => void;
+  as?: any;
+  [key: string]: any;
 }
 
-export const AmbientOrb = ({ color = "teal", size = 300, className, delay = 0 }: AmbientOrbProps) => {
-  const bg =
-    color === "teal"
-      ? "radial-gradient(circle, hsl(168 100% 48% / 0.12) 0%, transparent 70%)"
-      : "radial-gradient(circle, hsl(270 70% 65% / 0.1) 0%, transparent 70%)";
+export const NeuButton = ({
+  children,
+  className,
+  variant = "default",
+  onClick,
+  as: Component = "button",
+  ...props
+}: NeuButtonProps) => {
+  
+  let baseClass = "btn-neu px-6 py-3 text-sm";
+  if (variant === "primary") baseClass = "btn-neu-primary px-6 py-3 text-sm";
+  if (variant === "icon") baseClass = "btn-neu p-3 rounded-full";
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 2, delay }}
-      className={cn("absolute pointer-events-none animate-ambient", className)}
-      style={{ width: size, height: size, background: bg, borderRadius: "50%", filter: "blur(40px)" }}
-    />
+    <Component
+      onClick={onClick}
+      className={cn(baseClass, className)}
+      {...props}
+    >
+      {children}
+    </Component>
   );
 };
 
-/* ===== Floating Particles ===== */
-export const FloatingParticles = ({ count = 20 }: { count?: number }) => {
-  const particles = Array.from({ length: count }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 3 + 1,
-    duration: Math.random() * 20 + 15,
-    delay: Math.random() * 10,
-    opacity: Math.random() * 0.4 + 0.1,
-  }));
+/* ===== Neumorphism Background (Depth & Waves) ===== */
+export const NeuBackground = ({ scrollOverride }: { scrollOverride?: import("framer-motion").MotionValue<number> }) => {
+  const { scrollYProgress } = useScroll();
+  const progress = scrollOverride || scrollYProgress;
+  
+  // Window Scroll Parallax (Full Page Percentage Maps from 0 to 1)
+  const scrollY1 = useTransform(progress, [0, 1], [0, -400]); // Moves way up 
+  const scrollY2 = useTransform(progress, [0, 1], [0, 400]);  // Moves way down
+  const rotateWavesScroll = useTransform(progress, [0, 1], [0, 15]);
+  const scaleWavesScroll = useTransform(progress, [0, 1], [1, 1.2]);
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {particles.map((p) => (
-        <motion.div
-          key={p.id}
-          className="absolute rounded-full"
-          style={{
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            width: p.size,
-            height: p.size,
-            background: p.id % 3 === 0 
-              ? "hsl(270 70% 65% / 0.6)" 
-              : "hsl(168 100% 48% / 0.6)",
-            boxShadow: `0 0 ${p.size * 3}px hsl(168 100% 48% / 0.3)`,
-          }}
-          animate={{
-            y: [0, -30, 0],
-            x: [0, Math.random() * 20 - 10, 0],
-            opacity: [p.opacity, p.opacity * 1.5, p.opacity],
-          }}
-          transition={{
-            duration: p.duration,
-            delay: p.delay,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-      ))}
+    <div className="fixed inset-0 pointer-events-none z-[0] overflow-hidden bg-[#e0e5ec]">
+      
+      {/* Giant flat circle top-right */}
+      <motion.div style={{ y: scrollY1 }} className="absolute inset-0 transition-transform duration-700 ease-out">
+        <div className="absolute top-[-25vh] right-[-15vw] w-[70vw] h-[70vw] rounded-full neu-hero-flat opacity-100 animate-pulse-glow" style={{ animationDuration: '8s' }} />
+      </motion.div>
+      
+      {/* Giant pressed circle bottom-left */}
+      <motion.div style={{ y: scrollY2 }} className="absolute inset-0 transition-transform duration-700 ease-out">
+        <div className="absolute bottom-[-25vh] left-[-15vw] w-[80vw] h-[80vw] rounded-full neu-hero-pressed opacity-100" />
+      </motion.div>
+      
+      {/* Wave SVG (Detailed lines) with both scroll rotate and ambient continuous rotate */}
+      <motion.div style={{ rotate: rotateWavesScroll, scale: scaleWavesScroll }} className="absolute inset-[-20%] w-[140%] h-[140%] transition-transform duration-700 ease-out">
+        <svg className="w-full h-full opacity-40 mix-blend-multiply animate-orbit" style={{ '--orbit-duration': '120s', '--orbit-radius': '0px' } as any} preserveAspectRatio="none" viewBox="0 0 1440 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Generative-style overlapping lines */}
+          <path d="M-100 200 C 300 0, 800 600, 1540 200" stroke="#a3b1c6" strokeWidth="1" fill="none" />
+          <path d="M-100 215 C 320 20, 820 620, 1540 215" stroke="#a3b1c6" strokeWidth="1" fill="none" />
+          <path d="M-100 230 C 340 40, 840 640, 1540 230" stroke="#a3b1c6" strokeWidth="1" fill="none" />
+          <path d="M-100 245 C 360 60, 860 660, 1540 245" stroke="#a3b1c6" strokeWidth="1" fill="none" />
+          <path d="M-100 260 C 380 80, 880 680, 1540 260" stroke="#a3b1c6" strokeWidth="1" fill="none" />
+          <path d="M-100 275 C 400 100, 900 700, 1540 275" stroke="#a3b1c6" strokeWidth="1" fill="none" />
+          
+          {/* Second set of intersecting waves */}
+          <path d="M-100 500 C 400 700, 1000 100, 1540 400" stroke="#a3b1c6" strokeWidth="0.8" fill="none" />
+          <path d="M-100 515 C 420 720, 1020 120, 1540 415" stroke="#a3b1c6" strokeWidth="0.8" fill="none" />
+          <path d="M-100 530 C 440 740, 1040 140, 1540 430" stroke="#a3b1c6" strokeWidth="0.8" fill="none" />
+          <path d="M-100 545 C 460 760, 1060 160, 1540 445" stroke="#a3b1c6" strokeWidth="0.8" fill="none" />
+        </svg>
+      </motion.div>
+
     </div>
   );
 };
-
-/* ===== Liquid Spinner ===== */
-export const LiquidSpinner = ({ size = 48 }: { size?: number }) => (
-  <div className="liquid-spinner" style={{ width: size, height: size }} />
-);
-
-/* ===== Glow Text ===== */
-export const GlowText = ({
-  children,
-  className,
-  as: Tag = "span",
-}: {
-  children: React.ReactNode;
-  className?: string;
-  as?: "span" | "h1" | "h2" | "h3" | "p";
-}) => (
-  <Tag className={cn("text-glow", className)}>{children}</Tag>
-);

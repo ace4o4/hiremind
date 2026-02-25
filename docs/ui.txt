@@ -1,0 +1,55 @@
+Create a complete, highly polished, futuristic yet calming UI/UX design system for InterviewGuru – the world’s most advanced AI Interview Guru platform (2026 premium product). The overall aesthetic is Premium Liquid Glass + Soft Ambient Glow + 2D Physics-Driven Interactions. Think Apple’s Liquid Glass (iOS 26) meets Linear + Arc Browser + Calm app, but more alive, playful, and confidence-boosting.
+
+Core Design Language:
+
+Liquid Glass Material: Every card, button, panel and modal uses dynamic liquid glass effect – frosted translucent glass with real-time refraction, subtle inner liquid ripples that flow and shimmer when mouse moves, hovers, or scrolls. Borders have gentle liquid-like highlights that move like water drops. Background blur is strong (Gaussian + chromatic aberration for depth). Elements feel floating and alive.
+
+Soft Glows & Ambient Lighting: All interactive elements have soft neon-teal and warm purple glows (subtle bloom + outer glow) that pulse gently on hover/focus. Glow intensity increases slightly with user confidence (higher score = brighter glow).
+
+2D Scrolling Physics: Ultra-smooth momentum scrolling with realistic inertia and bounce (like iOS spring physics). Parallax layers on scroll – background subtly moves slower, glass cards tilt 3-5° with scroll velocity. Cards have subtle “settle” animation with overshoot when scrolling stops.
+
+Color Palette: Deep space navy background (#0A1428), translucent liquid glass base (#FFFFFF / 8-12% opacity), vibrant accent teal (#00F5D4), soft purple glow (#A855F7), warm confidence orange accents for success moments. Text is crisp white/off-white with soft glow.
+
+Typography: Satoshi (bold headings), Inter (body). All text has very subtle soft glow for premium feel.
+
+Overall Mood: Calming yet exciting – reduces anxiety while making the user feel like a tech god. Every interaction feels delightful, premium, and rewarding. Micro-animations everywhere (fluid, bouncy, satisfying).
+
+Tech Implementation Note: Built in Next.js 15 + Tailwind + Framer Motion 12 + Lenis smooth scroll + custom liquid glass shaders (CSS + WebGL if needed for refraction). Support dark/light mode (light mode has softer milky glass).
+
+Key Screens (design all in high detail, consistent style):
+
+Landing / Dashboard Home Full-screen hero with subtle animated background (very slow moving liquid particles + soft glow). Central floating “Start New Mock” button in big liquid glass orb with inner teal liquid shine. Left side: streak counter with glowing fireflies. Right side: progress radar chart floating with parallax tilt. Scroll down reveals recent sessions as bouncy liquid glass cards with momentum physics.
+
+Interview Setup Wizard Clean 3-step wizard. Each step card is liquid glass with real-time preview of blueprint (radar chart that animates as AI analyzes). Drag-and-drop resume area has liquid ripple on drop. “Analyze” button morphs into loading orb with swirling liquid inside.
+
+During Interview Screen (Most Important – Immersive) Almost full-screen immersive mode. Avatar/interviewer on left in circular liquid glass frame (face subtly reflects light). Right side: floating transcript panel with liquid glass edges. Top progress ring is glowing liquid ring that fills with teal liquid. Bottom floating controls (pause, hint, re-answer) are small glass pills with hover ripple. When Panel Attack Mode on → three glass panels slide in from bottom with physics bounce, each with different personality avatar. EQ Coach tips appear as soft glowing speech bubbles with gentle pop-in.
+
+Post-Interview Report (Mind-Blowing) Hero score in massive liquid glass orb – number grows with liquid fill animation + soft glow pulse. Below: interactive radar chart where segments glow brighter on hover. Scrollable highlight reel – video clips inside liquid glass frames that tilt with scroll physics and have inner refraction. “Replay & Level Up” buttons have liquid shine that flows when clicked. Voice Cloning play button shows waveform made of liquid particles. Entire report has gentle parallax depth layers.
+
+Progress Hub / Lifetime Dashboard Beautiful growth curves with glowing lines that have soft particle trails. Skill badges float with hover lift + glow. Streak counter has confetti of soft glowing teal particles when milestone hit.
+
+Micro-Interactions & Effects (Mandatory):
+
+Every click/hover: liquid ripple spreads from cursor point inside glass element.
+
+Scroll: cards have velocity-based tilt (2D physics) + soft shadow that stretches.
+
+Success moments: soft golden glow burst + tiny floating confidence particles.
+
+Loading states: beautiful liquid orb spinner with swirling refraction.
+
+Transitions: all screen changes use fluid glass morph + fade with momentum.
+
+Cursor: subtle custom glowing teal ring cursor that leaves faint trail on movement.
+
+Additional Details:
+
+WCAG AA accessible but still looks ultra-premium.
+
+Mobile PWA version: same liquid glass but optimized touch physics (stronger bounce).
+
+Exportable Figma components + variants for all states (hover, active, success, error).
+
+Resolution: 4K mockups, multiple device frames (MacBook, iPhone 16 Pro, iPad).
+
+Style: Hyper-realistic, cinematic, ultra-detailed, 2026 premium tech aesthetic, vibrant yet calming, extremely engaging and delightful. Make every pixel feel alive and premium. No flat design – everything has depth, refraction, glow and physics.

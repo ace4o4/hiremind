@@ -1,0 +1,176 @@
+1. Executive Summary
+The UI/UX of InterviewGuru follows “Calm Premium Minimalism with Subtle Liquid Glass” philosophy.
+
+Interview Screen = Ultra-minimal, zero-distraction (real interview feel)
+Dashboard, Setup, Report & Progress Hub = Premium, delightful, confidence-boosting
+Overall feel: Premium like Linear + Arc + Calm, but with subtle 2026 liquid glass magic
+Goal: Reduce interview anxiety by 70% while making every interaction feel rewarding and modern
+
+This design system will make InterviewGuru look and feel visually superior to every competitor in 2026 while remaining highly usable.
+Tagline for Design:
+“Calm on the outside. Powerful on the inside.”
+
+2. Design Principles
+
+Minimal First – Less is more. Never add decoration that doesn’t serve a purpose.
+Calm & Confident – Soft colors, generous space, smooth motion → zero anxiety.
+Subtle Premium Magic – Light liquid glass, soft glows, gentle physics only where it adds delight.
+Focus on User – During interview, 90% screen belongs to the user/avatar.
+Consistency – Every screen follows the same visual language.
+Delight without Distraction – Micro-animations are smooth, fast (≤300ms), and purposeful.
+
+
+3. Color System – “Nebula Ocean” (Refined Minimal Version)
+Background
+
+Primary: #0A1428 (Deep Space Navy)
+Gradient: #0A1428 → #1E3A8A (very subtle, top to bottom)
+
+Liquid Glass
+
+Base: #FFFFFF at 6–10% opacity
+Border: 1px solid #FFFFFF at 15% opacity
+Inner highlight: Soft teal gradient
+
+Accents
+
+Primary (Teal): #00E6C8 (Soft Ocean Teal) – buttons, progress, success
+Secondary Glow: #A78BFA (Soft Lavender) – hover, panels, EQ tips
+Success/Confidence: #34D399 (Jade Green)
+Warning: #F87171 (Soft Red – very rare)
+
+Text
+
+Primary: #F1F5F9
+Secondary/Muted: #94A3B8
+All text has 0.5px soft glow for premium feel
+
+States
+
+Hover/Focus: +12px soft teal glow + slight scale (1.02)
+Active/Success: Jade green glow + micro particle burst (only on high scores)
+
+
+4. Typography
+
+Headings: Satoshi (Variable) – weights 500, 700
+Body: Inter (Variable) – weights 400, 500
+Sizes:
+H1: 42px (Dashboard hero)
+H2: 28px
+Body: 16px
+Small: 14px
+
+Line height: 1.6
+Letter spacing: -0.02em for headings
+
+
+5. Core Visual Elements
+
+Liquid Glass Cards:
+Backdrop blur: 24px
+Border radius: 20px
+Subtle inner refraction (CSS + light WebGL where possible)
+No heavy liquid flow – only gentle shimmer on hover/scroll
+
+Soft Glow System:
+All interactive elements: 8–12px soft glow
+Glow color matches primary accent
+Glow intensity increases with user score (report screen)
+
+2D Scrolling Physics:
+Smooth inertia + natural bounce (Lenis + Framer Motion)
+Cards tilt 2–4° based on scroll velocity
+Parallax layers: background moves 30% slower
+
+Micro-animations:
+All transitions: 180–300ms, cubic-bezier(0.23, 1, 0.32, 1)
+Hover: scale + glow + liquid ripple from cursor
+Success: soft jade particle burst (10–15 particles, fade out)
+
+
+
+6. Key Screens – Detailed Specifications
+1. Dashboard Home
+
+Full bleed navy background with very slow moving subtle particles
+Central floating “Start New Mock” liquid glass button (big, 92px height)
+Left: Streak counter with soft glow fireflies
+Right: Mini radar chart with gentle tilt on scroll
+Below: Recent sessions as horizontal scrollable liquid glass cards (physics enabled)
+
+2. Interview Setup Wizard
+
+3 clean steps in floating glass cards
+Drag & drop zone with soft teal ripple on file hover
+Live blueprint preview (radar chart animates as AI analyzes)
+“Start Interview” button morphs into glowing orb
+
+3. During Interview Screen (Most Critical – Ultra Minimal)
+
+95% dark navy background
+Left: Circular avatar in liquid glass frame (subtle reflection)
+Center: Very subtle progress ring at top (liquid fill animation)
+Right: Toggleable transcript panel (glass, collapses to icon)
+Bottom: 4 floating pill buttons (Pause, Hint, Re-answer, End) – minimal icons only
+Panel Attack Mode: 3 glass panels slide up from bottom with soft bounce
+EQ Coach tip: Soft glowing bubble appears bottom-left (auto fades)
+No other elements visible – maximum focus
+
+4. Post-Interview Report
+
+Hero score in large liquid glass orb (number fills with teal liquid)
+Interactive radar chart (segments glow on hover)
+Scrollable highlight reel – video thumbnails in glass frames with physics tilt
+“Replay & Level Up” buttons: liquid shine flows on click
+Voice Cloning section: waveform made of soft glowing particles
+30-day roadmap as clean checklist with check animations
+
+5. Progress Hub
+
+Growth curves with soft glowing lines + particle trails
+Skill badges float with hover lift
+Streak counter explodes soft teal confetti on milestone
+
+
+7. Component Library (Reusable)
+
+Liquid Glass Card
+Glowing Button (Primary / Secondary / Ghost)
+Progress Ring (circular + linear)
+Avatar Frame
+Floating Pill Controls
+Interactive Radar Chart
+Video Clip Card
+Toast / EQ Coach Bubble
+Streak Counter
+
+All components have hover, active, disabled, success states documented.
+
+8. Interaction & Animation Guidelines
+
+Scroll: Lenis smooth scroll + custom 2D physics
+Hover: 180ms scale + glow + ripple
+Page transitions: Glass morph + fade (300ms)
+Loading: Elegant liquid orb spinner (no skeleton loaders)
+Success moments: Jade particle burst + soft sound (optional)
+
+
+9. Responsiveness & Accessibility
+
+Mobile-first PWA (iPhone, Android, iPad)
+Breakpoints: 320px, 768px, 1024px, 1440px
+WCAG 2.2 AA compliant
+Keyboard navigation + screen reader support
+High contrast mode available
+Reduced motion preference respected
+
+
+10. Technical Implementation Notes
+
+Framework: Next.js 15 + Tailwind CSS + shadcn/ui
+Animations: Framer Motion 12
+Smooth Scroll: Lenis
+Liquid Glass: CSS backdrop-blur + custom shader (light version)
+Physics: Custom Framer Motion spring + velocity tracking
+Dark mode only (light mode optional later).
