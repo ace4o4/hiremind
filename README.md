@@ -1,7 +1,7 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/ace4o4/hiremind/main/public/vite.svg" alt="InterviewForge Logo" width="120" />
 
-  # 🔮 InterviewForge (Hire
+  # 🔮 InterviewForge 
 
   **"Not just mock. Your forever Interview Guru who remembers everything."**
   
