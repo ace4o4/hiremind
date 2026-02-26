@@ -7,11 +7,15 @@ import {
   Target, Brain, Users, TrendingUp, AlertCircle,
   ChevronRight, Star, CheckCircle2, Shield,
   Share2, Download, Trophy, XCircle, AlertTriangle, BrainCircuit,
-  LayoutDashboard, MessageSquare, Briefcase, ArrowUpRight, StopCircle, RefreshCw, Upload, Eye, LogOut
+  LayoutDashboard, MessageSquare, Briefcase, ArrowUpRight, StopCircle, RefreshCw, Upload, Eye, LogOut, Loader2
 } from "lucide-react";
 import { CursorGlow, NeuCard, NeuButton, NeuBackground } from "@/components/LiquidGlass";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from "@/contexts/AuthContext";
+import { generateQuestions } from "@/lib/groq";
+import { saveInterview, getSessions, getUserStats } from "@/lib/db";
+import type { Session, UserStats } from "@/lib/db";
+import { toast } from "sonner";
 
 /* ===== SIDEBAR ===== */
 const Sidebar = ({ activeTab, setActiveTab, onSignOut }: { activeTab: string, setActiveTab: (t: string) => void, onSignOut: () => void }) => (
@@ -39,8 +43,8 @@ const Sidebar = ({ activeTab, setActiveTab, onSignOut }: { activeTab: string, se
           key={item.label}
           onClick={() => setActiveTab(item.label)}
           className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300 ${activeTab === item.label
-              ? "neu-pressed text-blue-600"
-              : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
+            ? "neu-pressed text-blue-600"
+            : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
             }`}
         >
           <item.icon className={`h-4 w-4 ${activeTab === item.label ? 'text-blue-600' : 'text-slate-400'}`} />
@@ -77,22 +81,22 @@ const Sidebar = ({ activeTab, setActiveTab, onSignOut }: { activeTab: string, se
   </aside>
 );
 
-/* ===== STATS DATA ===== */
-const statsData = [
-  { label: "Sessions", value: "24", icon: Play, change: "+6 this week", color: "teal" as const },
-  { label: "Avg Score", value: "78", icon: ArrowUpRight, change: "+12 pts", color: "purple" as const },
-  { label: "Streak", value: "7 days", icon: Star, change: "Personal best!", color: "warm" as const },
-  { label: "Skills Improved", value: "5", icon: Target, change: "STAR, System Design...", color: "teal" as const },
+/* ===== STATS DATA (static icons/labels only; values filled from DB) ===== */
+const statsIcons = [
+  { label: "Sessions", icon: Play, changeLabel: "total" },
+  { label: "Avg Score", icon: ArrowUpRight, changeLabel: "/ 100" },
+  { label: "Streak", icon: Star, changeLabel: "days" },
+  { label: "Skills", icon: Target, changeLabel: "roles practiced" },
 ];
 
 /* ===== RECENT SESSION BLOCK ===== */
 const RecentSessionCard = ({ title, score, date, tags }: { title: string; score: number; date: string; tags: string[] }) => (
   <NeuCard className="flex items-center gap-4 p-4 cursor-pointer hover:bg-white/5 transition-colors">
     <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl font-display text-lg font-black border ${score >= 80
-        ? "bg-primary/10 text-primary border-primary/20"
-        : score >= 60
-          ? "bg-purple-500/10 text-purple border-purple-500/20"
-          : "bg-destructive/10 text-destructive border-destructive/20"
+      ? "bg-primary/10 text-primary border-primary/20"
+      : score >= 60
+        ? "bg-purple-500/10 text-purple border-purple-500/20"
+        : "bg-destructive/10 text-destructive border-destructive/20"
       }`}>
       {score}
     </div>
@@ -112,13 +116,52 @@ const RecentSessionCard = ({ title, score, date, tags }: { title: string; score:
 );
 
 /* ===== VIEW: NEW INTERVIEW ===== */
-const NewInterviewView = () => {
-  const [step, setStep] = useState<"upload" | "configure" | "ready" | "generating">("upload");
+const NewInterviewView = ({ stats }: { stats: UserStats | null }) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [resumeText, setResumeText] = useState("");
+  const [jdText, setJdText] = useState("");
+  const [role, setRole] = useState("");
+  const [company, setCompany] = useState("");
+  const [step, setStep] = useState<"input" | "configure" | "generating">("input");
+  const [generatedId, setGeneratedId] = useState<string | null>(null);
+  const [questionCount, setQuestionCount] = useState(0);
+
+  const handleGenerate = async () => {
+    if (!resumeText.trim() || !jdText.trim() || !role.trim()) {
+      toast.error("Please fill in resume, job description and target role.");
+      return;
+    }
+    setStep("generating");
+    try {
+      const questions = await generateQuestions(resumeText, jdText, role, company);
+      const interviewId = await saveInterview({
+        user_id: user!.id,
+        job_role: role,
+        company: company || undefined,
+        jd_text: jdText,
+        resume_text: resumeText,
+        questions,
+      });
+      setQuestionCount(questions.length);
+      setGeneratedId(interviewId);
+    } catch (e) {
+      toast.error("Failed to generate questions. Please try again.");
+      setStep("configure");
+    }
+  };
+
+  const statsValues = [
+    { label: "Sessions", icon: Play, value: String(stats?.totalSessions ?? 0), change: "total" },
+    { label: "Avg Score", icon: ArrowUpRight, value: String(stats?.avgScore ?? 0), change: "/ 100" },
+    { label: "Streak", icon: Star, value: String(stats?.streak ?? 0), change: "days" },
+    { label: "Skills", icon: Target, value: String(stats?.skillsImproved ?? 0), change: "roles practiced" },
+  ];
 
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-        {statsData.map((stat, i) => (
+        {statsValues.map((stat, i) => (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1, type: "spring" }}>
             <NeuCard className="p-5" as="div">
               <div className="flex items-center justify-between">
@@ -143,121 +186,208 @@ const NewInterviewView = () => {
               </div>
               <div>
                 <h2 className="font-display text-xl font-bold text-slate-800">Start New Mock Interview</h2>
-                <p className="text-sm font-semibold text-slate-500">Upload your resume & paste the job description</p>
+                <p className="text-sm font-semibold text-slate-500">Paste your resume & job description to generate questions</p>
               </div>
             </div>
 
+            {/* Step indicator */}
             <div className="mt-6 flex gap-2">
-              {(["upload", "configure", "ready"] as const).map((s, i) => (
+              {(["input", "configure"] as const).map((s, i) => (
                 <div key={s} className="flex flex-1 items-center gap-2">
-                  <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-all duration-500 ${step === s ? "neu-convex text-blue-600" : i < ["upload", "configure", "ready"].indexOf(step) ? "neu-flat text-blue-500" : "neu-pressed text-slate-400"
-                    }`}>
-                    {i + 1}
-                  </div>
-                  <span className={`text-xs font-bold capitalize hidden sm:inline ${step === s ? 'text-slate-800' : 'text-slate-400'}`}>{s}</span>
-                  {i < 2 && <ChevronRight className="h-3 w-3 text-slate-300 ml-auto" />}
+                  <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-all duration-500 ${step === s || (step === "generating" && i < 2) ? "neu-convex text-blue-600" :
+                      i < ["input", "configure"].indexOf(step) ? "neu-flat text-blue-500" : "neu-pressed text-slate-400"
+                    }`}>{i + 1}</div>
+                  <span className={`text-xs font-bold capitalize hidden sm:inline ${step === s ? "text-slate-800" : "text-slate-400"
+                    }`}>{s === "input" ? "Resume & JD" : "Role Details"}</span>
+                  {i < 1 && <ChevronRight className="h-3 w-3 text-slate-300 ml-auto" />}
                 </div>
               ))}
             </div>
 
-            {step === "upload" && (
+            {/* Step 1: Resume + JD */}
+            {step === "input" && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
-                <div onClick={() => setStep("configure")} className="flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-slate-300 p-8 transition-all hover:border-blue-400 hover:bg-blue-50 group">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl neu-flat text-blue-500 group-hover:text-blue-600 transition-colors">
-                    <Upload className="h-6 w-6" />
-                  </div>
-                  <p className="text-sm font-bold text-slate-700">Drop your resume here</p>
-                  <p className="text-xs font-semibold text-slate-500">PDF, DOCX, or paste text</p>
+                <div>
+                  <label className="text-sm font-bold text-slate-700 mb-2 block">Your Resume</label>
+                  <NeuCard variant="pressed" className="p-3">
+                    <textarea
+                      rows={5}
+                      value={resumeText}
+                      onChange={(e) => setResumeText(e.target.value)}
+                      placeholder="Paste your resume text here (LinkedIn About + Experience section works great)..."
+                      className="w-full bg-transparent text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none"
+                    />
+                  </NeuCard>
                 </div>
-                <NeuCard className="p-4" variant="pressed">
+                <div>
                   <label className="text-sm font-bold text-slate-700 mb-2 block">Job Description</label>
-                  <textarea rows={3} placeholder="Paste the job description or LinkedIn URL..." onFocus={() => setStep("configure")} className="w-full bg-transparent p-0 text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none" />
-                </NeuCard>
+                  <NeuCard variant="pressed" className="p-3">
+                    <textarea
+                      rows={4}
+                      value={jdText}
+                      onChange={(e) => setJdText(e.target.value)}
+                      placeholder="Paste the full job description here..."
+                      className="w-full bg-transparent text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none"
+                    />
+                  </NeuCard>
+                </div>
+                <NeuButton
+                  variant="primary"
+                  className="w-full flex items-center justify-center gap-2 py-3.5"
+                  onClick={() => {
+                    if (!resumeText.trim() || !jdText.trim()) { toast.error("Please fill both fields."); return; }
+                    setStep("configure");
+                  }}
+                >
+                  Continue <ChevronRight className="h-4 w-4" />
+                </NeuButton>
               </motion.div>
             )}
 
+            {/* Step 2: Role + Company */}
             {step === "configure" && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
                 <div>
-                  <label className="text-sm font-bold text-slate-700">Target Role</label>
-                  <input type="text" placeholder="e.g. Senior Frontend Engineer" className="mt-2 w-full rounded-xl neu-pressed px-4 py-3 text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none" />
+                  <label className="text-sm font-bold text-slate-700">Target Role <span className="text-red-400">*</span></label>
+                  <input
+                    type="text"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    placeholder="e.g. Senior Frontend Engineer"
+                    className="mt-2 w-full rounded-xl neu-pressed px-4 py-3 text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none"
+                  />
                 </div>
                 <div>
-                  <label className="text-sm font-bold text-slate-700">Company Context (Optional)</label>
-                  <input type="text" placeholder="e.g. Google, Stripe" className="mt-2 w-full rounded-xl neu-pressed px-4 py-3 text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none" />
+                  <label className="text-sm font-bold text-slate-700">Company (Optional)</label>
+                  <input
+                    type="text"
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    placeholder="e.g. Google, Stripe"
+                    className="mt-2 w-full rounded-xl neu-pressed px-4 py-3 text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none"
+                  />
                 </div>
-
-                <div className="pt-4 flex flex-col sm:flex-row gap-4">
-                  <NeuButton onClick={() => setStep("upload")} className="flex-1">Back</NeuButton>
-                  <NeuButton variant="primary" onClick={() => setStep("generating")} className="flex-1 text-white">Generate Tracks</NeuButton>
+                <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                  <NeuButton onClick={() => setStep("input")} className="flex-1">Back</NeuButton>
+                  <NeuButton variant="primary" onClick={handleGenerate} className="flex-1 flex items-center justify-center gap-2">
+                    <BrainCircuit className="h-4 w-4" /> Generate Questions
+                  </NeuButton>
                 </div>
               </motion.div>
             )}
 
-            {step === "generating" && (
+            {/* Generating spinner */}
+            {step === "generating" && !generatedId && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-12 gap-6">
                 <div className="w-16 h-16 rounded-full border-4 border-slate-200 border-t-blue-500 animate-spin" />
-                <p className="text-sm font-bold text-slate-600 animate-pulse">Analyzing profile & drafting questions...</p>
+                <p className="text-sm font-bold text-slate-600 animate-pulse">Analyzing your profile & crafting questions...</p>
               </motion.div>
             )}
 
-            {step === "ready" && (
+            {/* Ready to start */}
+            {step === "generating" && generatedId && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
-                <NeuCard className="p-4" variant="pressed">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-blue-500" />
-                    <p className="text-sm font-bold text-slate-800">Blueprint Ready</p>
+                <NeuCard className="p-5" variant="pressed">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">Blueprint Ready!</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{questionCount} questions generated for <span className="font-bold text-blue-600">{role}</span>{company ? ` @ ${company}` : ""}</p>
+                    </div>
                   </div>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">12 questions generated • 35 min estimated</p>
                 </NeuCard>
-                <NeuButton variant="primary" className="w-full justify-center gap-2 py-4">
+                <NeuButton
+                  variant="primary"
+                  className="w-full flex items-center justify-center gap-2 py-4"
+                  onClick={() => navigate(`/interview/${generatedId}`)}
+                >
                   <Play className="h-4 w-4" /> Start Interview Now
                 </NeuButton>
               </motion.div>
             )}
+
           </NeuCard>
         </div>
 
-        <div className="lg:col-span-2 space-y-4">
-          <h3 className="font-bold text-sm text-slate-800">Recent Sessions</h3>
-          <RecentSessionCard title="Amazon SDE-2 Behavioral" score={82} date="Today" tags={["Behavioral", "Senior"]} />
-          <RecentSessionCard title="Google System Design" score={71} date="Yesterday" tags={["Technical", "Staff"]} />
-          <RecentSessionCard title="Flipkart PM Round" score={68} date="Feb 20" tags={["PM"]} />
-        </div>
+        <RecentSessionsSidebar />
       </div>
     </>
   );
 };
 
+/* ===== RECENT SESSIONS SIDEBAR (used in NewInterviewView) ===== */
+const RecentSessionsSidebar = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [sessions, setSessions] = useState<Session[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    getSessions(user.id).then(setSessions);
+  }, [user]);
+
+  return (
+    <div className="lg:col-span-2 space-y-4">
+      <h3 className="font-bold text-sm text-slate-800">Recent Sessions</h3>
+      {sessions.length === 0 ? (
+        <NeuCard className="p-6 text-center" variant="pressed">
+          <p className="text-sm text-slate-500 font-semibold">No sessions yet</p>
+          <p className="text-xs text-slate-400 mt-1">Complete your first interview to see it here</p>
+        </NeuCard>
+      ) : sessions.slice(0, 3).map((s) => (
+        <button key={s.id} onClick={() => navigate(`/report/${s.id}`)} className="w-full text-left">
+          <RecentSessionCard
+            title={s.job_role + (s.company ? ` @ ${s.company}` : "")}
+            score={s.score}
+            date={new Date(s.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+            tags={s.tags.slice(0, 2)}
+          />
+        </button>
+      ))}
+    </div>
+  );
+};
+
 /* ===== VIEW: PAST SESSIONS ===== */
 const PastSessionsView = () => {
-  const [filter, setFilter] = useState("All");
-  const sessions = [
-    { title: "Meta Senior Frontend", score: 88, date: "Mar 1", tags: ["Technical", "React"], type: "Technical" },
-    { title: "Amazon SDE-2 Behavioral", score: 82, date: "Today", tags: ["Behavioral", "Senior"], type: "Behavioral" },
-    { title: "Google System Design", score: 71, date: "Yesterday", tags: ["Technical", "Architecture"], type: "Technical" },
-    { title: "Flipkart PM Round", score: 68, date: "Feb 20", tags: ["PM", "Mixed"], type: "Mixed" },
-    { title: "Startup CTO Panel", score: 89, date: "Feb 18", tags: ["Panel"], type: "Mixed" },
-    { title: "Stripe API Design", score: 92, date: "Feb 15", tags: ["Technical", "API"], type: "Technical" },
-  ];
-  const filtered = filter === "All" ? sessions : sessions.filter(s => s.type === filter);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    getSessions(user.id).then((data) => { setSessions(data); setLoading(false); });
+  }, [user]);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      <div className="flex items-center gap-3 bg-white/[0.03] p-1.5 rounded-xl border border-white/[0.06] w-fit">
-        {["All", "Technical", "Behavioral", "Mixed"].map(f => (
-          <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${filter === f ? "bg-primary/20 text-primary border-primary/30 shadow-sm" : "hover:bg-white/5 text-muted-foreground"}`}>
-            {f}
-          </button>
-        ))}
-      </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((s, i) => (
-          <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-            <RecentSessionCard {...s} />
-          </motion.div>
-        ))}
-      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+        </div>
+      ) : sessions.length === 0 ? (
+        <NeuCard className="p-12 text-center">
+          <BrainCircuit className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+          <h3 className="font-bold text-slate-700 mb-2">No sessions yet</h3>
+          <p className="text-sm text-slate-500">Complete your first interview to see your history here.</p>
+        </NeuCard>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {sessions.map((s, i) => (
+            <motion.div key={s.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+              <button className="w-full text-left" onClick={() => navigate(`/report/${s.id}`)}>
+                <RecentSessionCard
+                  title={s.job_role + (s.company ? ` @ ${s.company}` : "")}
+                  score={s.score}
+                  date={new Date(s.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                  tags={s.tags.slice(0, 2)}
+                />
+              </button>
+            </motion.div>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 };
@@ -404,6 +534,7 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("New Interview");
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [stats, setStats] = useState<UserStats | null>(null);
 
   // Calculate dynamic scroll progress based on the active tab index
   const tabList = ["New Interview", "Past Sessions", "Progress Hub", "Skill Map", "Panel Mode", "Memory Bank", "Jobie Overview"];
@@ -416,6 +547,10 @@ const Dashboard = () => {
   useEffect(() => {
     rawProgress.set(targetProgress);
   }, [targetProgress, rawProgress]);
+
+  useEffect(() => {
+    if (user) getUserStats(user.id).then(setStats);
+  }, [user]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -465,7 +600,7 @@ const Dashboard = () => {
               transition={{ duration: 0.2 }}
               className="w-full h-full"
             >
-              {activeTab === "New Interview" && <NewInterviewView />}
+              {activeTab === "New Interview" && <NewInterviewView stats={stats} />}
               {activeTab === "Past Sessions" && <PastSessionsView />}
               {activeTab === "Progress Hub" && <ProgressHubView />}
               {activeTab === "Skill Map" && <SkillMapView />}
