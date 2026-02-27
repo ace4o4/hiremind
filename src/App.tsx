@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import Report from "./pages/Report";
 import NotFound from "./pages/NotFound";
+import VirtualInterviewRoom from "./pages/VirtualInterviewRoom";
 
 const queryClient = new QueryClient();
 
@@ -28,7 +29,16 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/report" element={<Report />} />
+            <Route path="/report" element={
+              <ProtectedRoute>
+                <Report />
+              </ProtectedRoute>
+            } />
+            <Route path="/virtual-room" element={
+              <ProtectedRoute>
+                <VirtualInterviewRoom />
+              </ProtectedRoute>
+            } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

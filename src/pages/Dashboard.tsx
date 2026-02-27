@@ -452,33 +452,95 @@ const SkillMapView = () => (
 );
 
 /* ===== VIEW: PANEL MODE ===== */
-const PanelModeView = () => (
-  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-    <NeuCard className="p-8">
-      <h2 className="text-2xl font-black text-slate-800 mb-4">Panel Interview Mode</h2>
-      <p className="text-slate-500 font-medium mb-8">Face multiple specialized AI personas simultaneously for the ultimate stress test.</p>
+const PanelModeView = () => {
+  const navigate = useNavigate();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[
-          { name: "The Architect", desc: "Rigorous system design and scalability questions.", icon: Brain, color: "text-purple-600" },
-          { name: "The Executive", desc: "Focuses on ROI, leadership, and product strategy.", icon: Briefcase, color: "text-emerald-600" },
-          { name: "The Debugger", desc: "Deep technical trivia and live bug-hunting.", icon: Zap, color: "text-amber-600" }
-        ].map((persona, i) => (
-          <NeuCard key={i} className="p-6 text-center group cursor-pointer hover:scale-[1.02] transition-transform">
-            <div className="h-16 w-16 mx-auto rounded-full neu-pressed flex items-center justify-center mb-4">
-              <persona.icon className={`h-8 w-8 ${persona.color}`} />
-            </div>
-            <h3 className="font-bold text-slate-800 mb-2">{persona.name}</h3>
-            <p className="text-xs font-semibold text-slate-500">{persona.desc}</p>
-          </NeuCard>
-        ))}
-      </div>
-      <div className="mt-8 flex justify-center">
-        <NeuButton variant="primary" className="px-12 py-4">Start Panel Session</NeuButton>
-      </div>
-    </NeuCard>
-  </motion.div>
-);
+  const personas = [
+    { 
+      id: "p1", name: "The Architect", desc: "Strict system design, scalability, and code structure focus.", icon: Brain, color: "text-purple-600",
+      avatarUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=600&auto=format&fit=crop",
+      simliFaceId: "tmp9c84fa1b-d1ec-4c17-9005-ed9c68097d2d", // Example male professional face
+      voiceParams: { pitch: 0.8, rate: 1.0 }
+    },
+    { 
+      id: "p2", name: "The Executive", desc: "Lenient and focuses on ROI, leadership, and product strategy.", icon: Briefcase, color: "text-emerald-600",
+      avatarUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=600&auto=format&fit=crop",
+      simliFaceId: "c2c5eb29-2ec8-4903-abd6-946460fae2fc", // Example female professional face
+      voiceParams: { pitch: 1.2, rate: 0.95 }
+    },
+    { 
+      id: "p3", name: "The Debugger", desc: "Deep technical trivia, live bug-hunting, extremely logical.", icon: Zap, color: "text-amber-600",
+      avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop",
+      simliFaceId: "5514e24d-6086-46a3-ace4-6a7264e5cb7c", // Example distinct male face
+      voiceParams: { pitch: 1.0, rate: 1.1 }
+    }
+  ];
+
+  const handleSelect = (id: string) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(x => x !== id));
+    } else {
+      if (selectedIds.length < 2) {
+        setSelectedIds([...selectedIds, id]);
+      }
+    }
+  };
+
+  const startSession = () => {
+    if (selectedIds.length === 0) return;
+    const selectedPersonas = personas
+      .filter(p => selectedIds.includes(p.id))
+      .map(({ icon, ...serializablePersona }) => serializablePersona); // Strip non-serializable React Component
+      
+    navigate('/virtual-room', { state: { selectedPersonas } });
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      <NeuCard className="p-8">
+        <h2 className="text-2xl font-black text-slate-800 mb-2">Panel Interview Mode</h2>
+        <p className="text-slate-500 font-medium mb-8">Face multiple specialized AI personas simultaneously. <strong className="text-slate-700">Select up to 2 interviewers.</strong></p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {personas.map((persona) => {
+            const isSelected = selectedIds.includes(persona.id);
+            return (
+              <NeuCard 
+                key={persona.id} 
+                className={`p-6 text-center group cursor-pointer transition-all duration-300 ${isSelected ? 'ring-2 ring-blue-500 shadow-md bg-blue-50/10' : 'hover:scale-[1.02]'}`}
+                onClick={() => handleSelect(persona.id)}
+              >
+                <div className={`h-16 w-16 mx-auto rounded-full flex items-center justify-center mb-4 transition-colors ${isSelected ? 'bg-blue-100' : 'neu-pressed'}`}>
+                  <persona.icon className={`h-8 w-8 ${isSelected ? 'text-blue-600' : persona.color}`} />
+                </div>
+                <h3 className="font-bold text-slate-800 mb-2">{persona.name}</h3>
+                <p className="text-xs font-semibold text-slate-500">{persona.desc}</p>
+                {isSelected && (
+                  <div className="mt-4 flex justify-center">
+                    <span className="bg-blue-500 text-white text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Selected
+                    </span>
+                  </div>
+                )}
+              </NeuCard>
+            );
+          })}
+        </div>
+        <div className="mt-8 flex flex-col items-center">
+          <NeuButton 
+            variant="primary" 
+            className="px-12 py-4 text-white disabled:opacity-50 disabled:cursor-not-allowed" 
+            disabled={selectedIds.length === 0}
+            onClick={startSession}
+          >
+            Start Panel Session ({selectedIds.length}/2)
+          </NeuButton>
+        </div>
+      </NeuCard>
+    </motion.div>
+  );
+};
 
 /* ===== VIEW: MEMORY BANK ===== */
 const MemoryBankView = () => (
