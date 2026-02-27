@@ -400,10 +400,10 @@ const TimelineSection = () => {
                   >
                      {/* The Card */}
                      <div className={`w-full max-w-[380px] group transform transition-all duration-500 hover:scale-[1.02] ${isLeft ? "rotate-[-1deg] hover:rotate-0" : "rotate-[1deg] hover:rotate-0"}`}>
-                       <NeuCard className="p-8 h-full relative overflow-hidden" variant="flat">
-                             <div className={`font-display text-4xl font-black ${step.textClass} mb-4 opacity-90`}>{step.num}</div>
-                             <h3 className="font-display font-bold text-slate-800 text-xl mb-3 relative z-10">{step.title}</h3>
-                             <p className="text-slate-500 text-sm leading-relaxed relative z-10 font-medium">{step.desc}</p>
+                       <NeuCard className="p-8 h-full relative overflow-hidden bg-white/5 border border-white/10 hover:bg-white/10">
+                             <div className={`font-display text-4xl font-black ${step.textClass} mb-4 opacity-90 drop-shadow-md`}>{step.num}</div>
+                             <h3 className="font-display font-bold text-white text-xl mb-3 relative z-10">{step.title}</h3>
+                             <p className="text-slate-400 text-sm leading-relaxed relative z-10 font-medium group-hover:text-slate-300 transition-colors">{step.desc}</p>
                        </NeuCard>
                      </div>
                   </motion.div>
