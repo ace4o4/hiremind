@@ -1,14 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { ChatOpenAI } from '@langchain/openai';
-import { PromptTemplate } from '@langchain/core/prompts';
 import { tavily } from '@tavily/core';
-import OpenAI from 'openai';
 import { generateGitHubQuestions } from './github-analyzer.js';
-import { evaluateCanvasDesign } from './canvas-vision-agent.js';
 
-dotenv.config({ path: '../.env' }); // Load from parent directory
+dotenv.config({ path: '../.env' });
 
 const app = express();
 app.use(cors());
@@ -16,225 +12,147 @@ app.use(express.json());
 
 const port = process.env.PORT || 3001;
 
-// Initialize LangChain Models
-const llm = new ChatOpenAI({
-  modelName: "gpt-4o",
-  temperature: 0.7,
-  openAIApiKey: process.env.OPENAI_API_KEY, // Assume user adds this to .env
-});
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const FAST_MODEL = 'llama-3.3-70b-versatile';
+const SMART_MODEL = 'llama-3.3-70b-versatile';
 
-const fastLlm = new ChatOpenAI({
-  modelName: "gpt-4o-mini",
-  temperature: 0.2,
-  openAIApiKey: process.env.OPENAI_API_KEY,
-});
+// ---- Generic Groq caller ----
+async function callGroq(
+  messages: { role: string; content: string }[],
+  model = FAST_MODEL,
+  temperature = 0.7
+): Promise<string> {
+  const res = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({ model, messages, temperature, max_tokens: 2048 }),
+  });
+  if (!res.ok) throw new Error(`Groq ${res.status}: ${await res.text()}`);
+  const data = await res.json() as any;
+  return data.choices[0].message.content as string;
+}
 
-const openaiClient = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function extractJSON(raw: string): any {
+  const match = raw.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+  if (!match) throw new Error('No JSON found in response');
+  return JSON.parse(match[0]);
+}
 
-// --- 0. TTS Streaming Endpoint for Simli Avatars ---
-app.post('/api/agents/tts', async (req, res) => {
-  try {
-    const { text, voice } = req.body;
-    if (!text) return res.status(400).json({ error: "Text is required" });
-
-    const mp3 = await openaiClient.audio.speech.create({
-      model: "tts-1",
-      voice: voice || "nova",
-      input: text,
-    });
-
-    const buffer = Buffer.from(await mp3.arrayBuffer());
-    res.setHeader('Content-Type', 'audio/mpeg');
-    res.send(buffer);
-  } catch (error) {
-    console.error("TTS generation error:", error);
-    res.status(500).json({ error: "Failed to generate TTS audio" });
-  }
-});
-
-// --- 1. Tavily Intelligence Agent Endpoint ---
+// --- 1. Tavily Intelligence Agent ---
 app.post('/api/agents/tavily-research', async (req, res) => {
   try {
     const { companyName } = req.body;
-    if (!companyName) {
-      return res.status(400).json({ error: 'Company name is required' });
-    }
+    if (!companyName) return res.status(400).json({ error: 'companyName is required' });
 
-    // Use Tavily to search for recent company news
-    const searchTool = tavily({
-      apiKey: process.env.TAVILY_API_KEY, // Assume user adds this to .env
-    });
-    
-    const searchResponse = await searchTool.search(`${companyName} recent news tech layoffs product launches`, { maxResults: 3 });
-    const searchResults = JSON.stringify(searchResponse.results);
-    
-    // Synthesize the results into 2 killer questions
-    const synthesisPrompt = PromptTemplate.fromTemplate(`
-      You are an expert technical recruiter preparing for an interview with a candidate applying to {company}.
-      Here is the latest news about {company}:\n\n{news}\n\n
-      Based STRICTLY on this news, generate 2 hyper-relevant, challenging interview questions that test the candidate's industry awareness and ability to adapt to the company's current situation.
-      Return ONLY a JSON array of strings containing the questions.
-    `);
+    const searchTool = tavily({ apiKey: process.env.TAVILY_API_KEY! });
+    const searchResponse = await searchTool.search(
+      `${companyName} recent news tech product launches 2025`,
+      { maxResults: 3 }
+    );
+    const news = JSON.stringify(searchResponse.results);
 
-    const chain = synthesisPrompt.pipe(fastLlm);
-    const response = await chain.invoke({ company: companyName, news: searchResults });
+    const raw = await callGroq([
+      {
+        role: 'user',
+        content: `You are an expert technical recruiter preparing for an interview with a candidate applying to ${companyName}.
+Here is the latest news about ${companyName}:\n\n${news}\n\n
+Based STRICTLY on this news, generate 2 hyper-relevant challenging interview questions that test the candidate's industry awareness.
+Return ONLY a JSON array of strings: ["question1", "question2"]`
+      }
+    ]);
 
-    let parsedQuestions = [];
-    try {
-      // Clean up potential markdown formatting from LLM response
-      const cleanContent = (response.content as string).replace(/```json/g, '').replace(/```/g, '').trim();
-      parsedQuestions = JSON.parse(cleanContent);
-    } catch(e) {
-      parsedQuestions = [response.content]; // Fallback if not strict JSON
-    }
-
-    res.json({ questions: parsedQuestions, raw_news: searchResults });
-
-  } catch (error) {
-    console.error("Tavily Agent Error:", error);
-    res.status(500).json({ error: 'Failed to run intelligence agent' });
+    const questions = extractJSON(raw);
+    res.json({ questions, raw_news: news });
+  } catch (error: any) {
+    console.error('Tavily Agent Error:', error.message);
+    res.status(500).json({ error: 'Failed to run intelligence agent', detail: error.message });
   }
 });
 
-// --- 2. Main Interviewer Logic Edge ---
+// --- 2. Chat Interviewer ---
 app.post('/api/agents/chat', async (req, res) => {
   try {
-    const { message, history, persona, personas } = req.body;
+    const { message, history = [], persona } = req.body;
+    if (!message) return res.status(400).json({ error: 'message is required' });
 
-    const isPanel = personas && Array.isArray(personas) && personas.length > 0;
-    
-    let systemPrompt = `
-      You are an expert AI Interviewer for a Senior Tech Role. Your current persona is: ${persona || 'Standard Technical Lead'}.
-      Act strictly as the interviewer. Ask ONE question at a time. Evaluate the candidate's last answer briefly before asking the next question.
-      Keep your responses concise, professional, and directly related to the role setup.
-    `;
+    const systemPrompt = `You are an expert AI Interviewer for a Senior Tech Role. Persona: ${persona || 'Standard Technical Lead'}.
+Act strictly as the interviewer. Ask ONE question at a time. Briefly evaluate the candidate's last answer before asking the next.
+Keep responses concise, professional, and directly related to the role.`;
 
-    if (isPanel) {
-      const panelDescriptions = personas.map((p: any) => `${p.name} (${p.desc})`).join('\n');
-      systemPrompt = `
-        You are acting as a Panel of Interviewers for a Senior Tech Role. 
-        There are ${personas.length} interviewers in the room:
-        ${panelDescriptions}
-        
-        Act strictly as the panel. Based on the candidate's last answer, decide WHO should speak next and what they should ask.
-        Ask ONE question at a time, or have one interviewer evaluate the answer while the other asks a follow-up.
-        Keep responses concise and professional.
-        
-        You MUST output your response EXACTLY in this JSON format and nothing else:
-        {
-          "speaker": "Name of the interviewer speaking",
-          "message": "The actual spoken text"
-        }
-      `;
-    }
-
-    // Construct history for LangChain
     const messages = [
-      ["system", systemPrompt],
-      ...history.map((msg: any) => [msg.role === 'user' ? 'human' : 'ai', msg.content]),
-      ["human", message]
+      { role: 'system', content: systemPrompt },
+      ...history.map((msg: any) => ({ role: msg.role === 'user' ? 'user' : 'assistant', content: msg.content })),
+      { role: 'user', content: message }
     ];
 
-    const response = await llm.invoke(messages);
-
-    let parsedContent = response.content;
-    let speaker = isPanel ? personas[0]?.name : (persona || 'Interviewer');
-
-    if (isPanel) {
-      try {
-        const cleanContent = (response.content as string).replace(/```json/g, '').replace(/```/g, '').trim();
-        const jsonContent = JSON.parse(cleanContent);
-        parsedContent = jsonContent.message;
-        speaker = jsonContent.speaker || speaker;
-      } catch (e) {
-        console.warn("Failed to parse Panel JSON format, falling back to raw content.", e);
-        parsedContent = response.content;
-      }
-    }
-
-    res.json({ 
-      content: parsedContent,
-      speaker: speaker
-    });
-  } catch (error) {
-    console.error("Chat Agent Error:", error);
-    res.status(500).json({ error: 'Failed to generate response' });
+    const content = await callGroq(messages, SMART_MODEL, 0.7);
+    res.json({ content });
+  } catch (error: any) {
+    console.error('Chat Agent Error:', error.message);
+    res.status(500).json({ error: 'Failed to generate response', detail: error.message });
   }
 });
 
-// --- 3. Evaluator Agent (Async Grading) ---
+// --- 3. Evaluator Agent ---
 app.post('/api/agents/evaluate', async (req, res) => {
   try {
-     const { question, answer } = req.body;
+    const { question, answer } = req.body;
+    if (!question || !answer) return res.status(400).json({ error: 'question and answer are required' });
 
-     const evaluationPrompt = PromptTemplate.fromTemplate(`
-        You are an expert strict interview evaluator. 
-        Question asked: "{question}"
-        Candidate's answer: "{answer}"
-        
-        Evaluate the answer on two metrics from 0 to 100:
-        1. Content Quality (Accuracy, depth, STAR method usage if behavioral)
-        2. Delivery (Clarity, structure, confidence implied by phrasing)
-        
-        Provide constructive feedback (max 2 sentences) pointing out exactly what was missing or what was good.
-        Also, determine if this answer reveals a fundamental "weakness" (True/False).
-        
-        Return STRICTLY in this JSON format:
-        {{"score_content": 85, "score_delivery": 70, "feedback": "Good structural approach but lacked specific metrics in the result phase.", "is_weakness": false}}
-     `);
+    const raw = await callGroq([
+      {
+        role: 'user',
+        content: `You are an expert strict interview evaluator.
+Question: "${question}"
+Candidate's answer: "${answer}"
 
-     const chain = evaluationPrompt.pipe(fastLlm);
-     const response = await chain.invoke({ question, answer });
-     
-     let evaluation;
-     try {
-       const cleanContent = (response.content as string).replace(/```json/g, '').replace(/```/g, '').trim();
-       evaluation = JSON.parse(cleanContent);
-     } catch(e) {
-       evaluation = { score_content: 50, score_delivery: 50, feedback: "Failed to parse evaluation.", is_weakness: true };
-     }
+Evaluate on two metrics (0-100):
+1. Content Quality (accuracy, depth, STAR method if behavioral)
+2. Delivery (clarity, structure, confidence)
 
-     res.json(evaluation);
-  } catch (error) {
-    console.error("Evaluator Agent Error:", error);
-    res.status(500).json({ error: 'Failed to evaluate answer' });
+Return STRICTLY this JSON (no extra text):
+{"score_content": 85, "score_delivery": 70, "feedback": "2 sentences max.", "is_weakness": false}`
+      }
+    ], FAST_MODEL, 0.2);
+
+    const evaluation = extractJSON(raw);
+    res.json(evaluation);
+  } catch (error: any) {
+    console.error('Evaluator Agent Error:', error.message);
+    res.status(500).json({ error: 'Failed to evaluate answer', detail: error.message });
   }
 });
 
-// --- 4. Killer Feature: GitHub Code Analysis Agent ---
+// --- 4. GitHub Code Analysis Agent ---
 app.post('/api/agents/github-code-review', async (req, res) => {
   try {
     const { githubUsername } = req.body;
-    if (!githubUsername) return res.status(400).json({ error: 'GitHub username required' });
+    if (!githubUsername) return res.status(400).json({ error: 'githubUsername is required' });
 
     const questions = await generateGitHubQuestions(githubUsername);
     res.json({ questions });
-  } catch (error) {
-    console.error("GitHub Agent Error:", error);
-    res.status(500).json({ error: 'Failed to analyze GitHub repositories' });
+  } catch (error: any) {
+    console.error('GitHub Agent Error:', error.message);
+    res.status(500).json({ error: 'Failed to analyze GitHub repos', detail: error.message });
   }
 });
 
-// --- 5. Killer Feature: Interactive Canvas Vision Agent ---
-app.post('/api/agents/canvas-evaluator', async (req, res) => {
-  try {
-    const { base64Image, currentQuestionContext, previousCanvasStateSummary } = req.body;
-    if (!base64Image) return res.status(400).json({ error: 'Base64 image is required' });
-
-    const evaluation = await evaluateCanvasDesign(
-        base64Image, 
-        currentQuestionContext || "Design a scalable backend architecture.", 
-        previousCanvasStateSummary
-    );
-    res.json(evaluation);
-  } catch (error) {
-    console.error("Canvas Vision Agent Error:", error);
-    res.status(500).json({ error: 'Failed to evaluate canvas architecture' });
-  }
+// --- 5. Health Check ---
+app.get('/api/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    groq: !!GROQ_API_KEY,
+    tavily: !!process.env.TAVILY_API_KEY,
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.listen(port, () => {
   console.log(`🧠 AI Agent Server running on port ${port}`);
+  console.log(`   Groq: ${GROQ_API_KEY ? '✅' : '❌ missing'}`);
+  console.log(`   Tavily: ${process.env.TAVILY_API_KEY ? '✅' : '❌ missing'}`);
 });
