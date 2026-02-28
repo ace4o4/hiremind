@@ -250,11 +250,12 @@ app.post('/api/agents/stt', async (req, res) => {
     if (!audioBase64) return res.status(400).json({ error: 'audioBase64 is required' });
 
     const audioBuffer = Buffer.from(audioBase64, 'base64');
-    // Derive extension from MIME type; default to webm which Whisper supports well
     const baseMime = mimeType.split(';')[0].trim();
     const ext = Object.keys(SUPPORTED_AUDIO_TYPES).find(
       k => SUPPORTED_AUDIO_TYPES[k] === baseMime
     ) ?? 'webm';
+
+    console.log(`🎙️ STT Request - Base64 Length: ${audioBase64.length}, Buffer Size: ${audioBuffer.length} bytes, Mime: ${baseMime}, Ext: ${ext}`);
 
     const formData = new FormData();
     formData.append('file', new Blob([audioBuffer], { type: baseMime }), `audio.${ext}`);
@@ -271,6 +272,7 @@ app.post('/api/agents/stt', async (req, res) => {
     if (!sttRes.ok) throw new Error(`Groq STT ${sttRes.status}: ${await sttRes.text()}`);
 
     const data = await sttRes.json() as any;
+    console.log(`📝 STT Result: "${data.text}"`);
     res.json({ text: data.text });
   } catch (error: any) {
     console.error('STT Agent Error:', error.message);
@@ -322,27 +324,27 @@ Return ONLY this JSON (no extra text):
 // Generates targeted interview questions from resume + JD.
 app.post('/api/agents/generate-questions', async (req, res) => {
   try {
-    const { resumeText, jdText, companyName, numQuestions = 5 } = req.body;
-    if (!resumeText || !jdText) return res.status(400).json({ error: 'resumeText and jdText are required' });
+    const { resumeText, jdText, role, difficulty, numQuestions = 5 } = req.body;
+    if (!resumeText && !jdText) return res.status(400).json({ error: 'At least one of resumeText or jdText is required' });
 
     const raw = await callGroq([
       {
         role: 'user',
-        content: `You are a world-class technical recruiter preparing for an interview at ${companyName || 'a top tech company'}.
+        content: `You are a world-class technical recruiter preparing for a ${difficulty || 'Medium'} difficulty interview for the role of ${role || 'Software Engineer'}.
 
 Candidate Resume:
 """
-${resumeText}
+${resumeText || 'Not provided'}
 """
 
 Job Description:
 """
-${jdText}
+${jdText || 'Not provided'}
 """
 
 Generate exactly ${numQuestions} hyper-personalized interview questions that:
-1. Directly reference the candidate's specific past experience/projects from their resume.
-2. Test whether their skills match the JD requirements.
+1. Directly reference the candidate's specific past experience/projects from their resume (if available).
+2. Test whether their skills match the JD requirements (if available) given the ${difficulty || 'Medium'} difficulty.
 3. Include a mix of behavioral (STAR), technical, and situational questions.
 4. For each question, identify its type.
 
@@ -417,6 +419,44 @@ Analyse the interview and return ONLY this JSON (no extra text, all numeric scor
   }
 });
 
+// --- 11. Real-Time Audio Interview Evaluator ---
+app.post('/api/agents/evaluate-answer', async (req, res) => {
+  try {
+    const { userAnswer, currentQuestion, jobDescription } = req.body;
+    if (!userAnswer || !currentQuestion) return res.status(400).json({ error: 'userAnswer and currentQuestion are required' });
+
+    const raw = await callGroq([
+      {
+        role: 'user',
+        content: `You are an expert interview coach analyzing a candidate's verbal response in real-time.
+Question: "${currentQuestion}"
+Candidate Answer: "${userAnswer}"
+Job Context: "${jobDescription || 'General Tech Role'}"
+
+Tasks:
+1. Provide an "optimizedAnswer" that rewrites their answer to sound more professional, succinct, and structured (use STAR method if applicable).
+2. Grade their Tone (Confidence, clarity) on a scale of 0-100.
+3. Grade their Vocabulary (Professionalism, industry keywords) on a scale of 0-100.
+4. Provide a very brief constructive feedback (1-2 sentences).
+
+Return ONLY this structured JSON (no markdown or extra text):
+{
+  "optimizedAnswer": "...",
+  "toneScore": 85,
+  "vocabularyScore": 75,
+  "feedback": "..."
+}`
+      }
+    ], FAST_MODEL, 0.2);
+
+    const evaluation = extractJSON(raw);
+    res.json(evaluation);
+  } catch (error: any) {
+    console.error('Real-Time Evaluator Error:', error.message);
+    res.status(500).json({ error: 'Failed to evaluate answer', detail: error.message });
+  }
+});
+
 // --- Health Check ---
 app.get('/api/health', (_req, res) => {
   res.json({
@@ -428,6 +468,7 @@ app.get('/api/health', (_req, res) => {
       'POST /api/agents/tavily-research',
       'POST /api/agents/chat',
       'POST /api/agents/evaluate',
+      'POST /api/agents/evaluate-answer',
       'POST /api/agents/github-code-review',
       'POST /api/agents/tts',
       'POST /api/agents/canvas-evaluate',

@@ -11,6 +11,8 @@ import Auth from "./pages/Auth";
 import Report from "./pages/Report";
 import NotFound from "./pages/NotFound";
 import VirtualInterviewRoom from "./pages/VirtualInterviewRoom";
+import AudioInterviewSetup from "./pages/AudioInterviewSetup";
+import LiveAudioInterview from "./pages/LiveAudioInterview";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +39,16 @@ const App = () => (
             <Route path="/virtual-room" element={
               <ProtectedRoute>
                 <VirtualInterviewRoom />
+              </ProtectedRoute>
+            } />
+            <Route path="/audio-setup" element={
+              <ProtectedRoute>
+                <AudioInterviewSetup />
+              </ProtectedRoute>
+            } />
+            <Route path="/audio-interview" element={
+              <ProtectedRoute>
+                <LiveAudioInterview />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

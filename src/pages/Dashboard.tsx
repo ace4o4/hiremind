@@ -115,6 +115,7 @@ const RecentSessionCard = ({ id = "mock-id", title, score, date, tags }: { id?: 
 );
 
 const NewInterviewView = ({ sessions, profile }: { sessions: any[], profile: any }) => {
+  const navigate = useNavigate();
   const [step, setStep] = useState<"upload" | "configure" | "ready" | "generating">("upload");
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [jobDescription, setJobDescription] = useState("");
@@ -173,14 +174,24 @@ const NewInterviewView = ({ sessions, profile }: { sessions: any[], profile: any
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="lg:col-span-3">
           <NeuCard className="p-8">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl neu-pressed text-blue-600">
-                <BrainCircuit className="h-5 w-5" />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl neu-pressed text-blue-600">
+                  <BrainCircuit className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="font-display text-xl font-bold text-slate-800">Start New Mock Interview</h2>
+                  <p className="text-sm font-semibold text-slate-500">Upload your resume & paste the job description</p>
+                </div>
               </div>
-              <div>
-                <h2 className="font-display text-xl font-bold text-slate-800">Start New Mock Interview</h2>
-                <p className="text-sm font-semibold text-slate-500">Upload your resume & paste the job description</p>
-              </div>
+              
+              <NeuButton 
+                variant="primary" 
+                className="px-6 py-2 bg-blue-600 text-white font-bold"
+                onClick={() => navigate('/audio-setup')}
+              >
+                Launch Audio Coach &rarr;
+              </NeuButton>
             </div>
 
             <div className="mt-6 flex gap-2">
