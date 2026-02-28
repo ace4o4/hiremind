@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { API_URL } from "@/lib/api";
 import StreamingAvatar, {
   AvatarQuality,
   StreamingEvents,
@@ -75,7 +76,7 @@ export default function VirtualInterviewRoom() {
     const initClients = async () => {
       try {
         // Fetch token securely from backend
-        const tokenRes = await fetch("http://localhost:3001/api/heygen-token", {
+        const tokenRes = await fetch(`${API_URL}api/heygen-token`, {
           method: "POST",
         });
         if (!tokenRes.ok) throw new Error("Failed to get HeyGen token");
@@ -144,7 +145,7 @@ export default function VirtualInterviewRoom() {
       clientsToCleanUp.forEach((client) => {
         try {
           client.stopAvatar();
-        } catch (e) {}
+        } catch (e) { }
       });
       heygenClientsRef.current = {};
     };
@@ -172,7 +173,7 @@ export default function VirtualInterviewRoom() {
       if (micActive && !activeSpeakerId && !isAiThinking) {
         try {
           recognition.start();
-        } catch (e) {}
+        } catch (e) { }
       }
     };
 
@@ -189,7 +190,7 @@ export default function VirtualInterviewRoom() {
     if (micActive && !activeSpeakerId && !isAiThinking) {
       try {
         recognitionRef.current.start();
-      } catch (e) {}
+      } catch (e) { }
     } else {
       recognitionRef.current.stop();
     }
@@ -206,7 +207,7 @@ export default function VirtualInterviewRoom() {
     setMicActive(false); // Pause mic while AI thinks/speaks
 
     try {
-      const res = await fetch("http://localhost:3001/api/agents/chat", {
+      const res = await fetch(`${API_URL}api/agents/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -283,7 +284,7 @@ export default function VirtualInterviewRoom() {
   useEffect(() => {
     if (selectedPersonas.length > 0 && history.length === 0 && !isAiThinking) {
       setIsAiThinking(true);
-      fetch("http://localhost:3001/api/agents/chat", {
+      fetch(`${API_URL}api/agents/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -328,13 +329,13 @@ export default function VirtualInterviewRoom() {
     Object.values(heygenClientsRef.current).forEach((c) => {
       try {
         c.stopAvatar();
-      } catch (e) {}
+      } catch (e) { }
     });
     heygenClientsRef.current = {};
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // Save history to localStorage and go to report
@@ -420,8 +421,8 @@ export default function VirtualInterviewRoom() {
                       animate={
                         activeSpeakerId === persona.id
                           ? {
-                              height: ["20%", "80%", "40%", "100%", "30%"],
-                            }
+                            height: ["20%", "80%", "40%", "100%", "30%"],
+                          }
                           : { height: "20%" }
                       }
                       transition={{

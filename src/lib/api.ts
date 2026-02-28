@@ -1,6 +1,8 @@
 import { supabase } from "./supabase";
 import type { User } from "@supabase/supabase-js";
 
+export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/";
+
 // ---- Mock Data ----
 const MOCK_PROFILE = {
   id: "mock-user-id",
@@ -19,16 +21,26 @@ const MOCK_SESSIONS = [
 
 // ---- User Profiles ----
 export const getUserProfile = async (userId: string) => {
-  return MOCK_PROFILE;
-};
+  const { data, error } = await supabase
+    .from('users_profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
 
-export const updateUserProfile = async (userId: string, updates: any) => {
-  return { ...MOCK_PROFILE, ...updates };
+  if (error) return MOCK_PROFILE; // Fallback to mock for now
+  return data;
 };
 
 // ---- Interview Sessions ----
 export const getInterviewSessions = async (userId: string) => {
-  return MOCK_SESSIONS;
+  const { data, error } = await supabase
+    .from('interview_sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) return MOCK_SESSIONS;
+  return data;
 };
 
 export const createInterviewSession = async (
@@ -36,7 +48,14 @@ export const createInterviewSession = async (
   companyFocus: string,
   roleFocus: string,
 ) => {
-  return { id: "new-mock-session", user_id: userId, company_focus: companyFocus, role_focus: roleFocus, status: "in_progress", created_at: new Date().toISOString() };
+  const { data, error } = await supabase
+    .from('interview_sessions')
+    .insert({ user_id: userId, company_focus: companyFocus, role_focus: roleFocus, status: 'in_progress' })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 };
 
 export const endInterviewSession = async (
@@ -45,7 +64,15 @@ export const endInterviewSession = async (
   duration: number,
   feedback: string,
 ) => {
-  return { id: sessionId, status: "completed", score, duration_seconds: duration, overall_feedback: feedback };
+  const { data, error } = await supabase
+    .from('interview_sessions')
+    .update({ status: 'completed', score, duration_seconds: duration, overall_feedback: feedback })
+    .eq('id', sessionId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 };
 
 // ---- QA Logs ----
@@ -59,5 +86,14 @@ export const addQALog = async (logData: any) => {
 
 // ---- Long Term Memory ----
 export const getUserMemories = async (userId: string) => {
-  return [];
+  const { data, error } = await supabase
+    .from('session_qa_logs')
+    .select('current_question, constructive_feedback, created_at')
+    .eq('user_id', userId)
+    .not('constructive_feedback', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  if (error) return [];
+  return data;
 };

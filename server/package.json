@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@octokit/rest": "^22.0.1",
+    "@supabase/supabase-js": "^2.98.0",
     "@tavily/core": "^0.7.2",
     "acorn": "^8.16.0",
     "cors": "^2.8.6",

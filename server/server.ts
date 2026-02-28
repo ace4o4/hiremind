@@ -4,8 +4,32 @@ import dotenv from 'dotenv';
 import { tavily } from '@tavily/core';
 import { generateGitHubQuestions } from './github-analyzer.js';
 import { evaluateCanvasDesign } from './canvas-vision-agent.js';
+import { createClient } from '@supabase/supabase-js';
+import { fileURLToPath } from 'url';
+import path from 'path';
 
-dotenv.config({ path: '../.env' });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Absolute path to root .env
+const rootEnvPath = path.resolve(__dirname, '../../.env');
+const localEnvPath = path.resolve(__dirname, '../.env');
+const currentEnvPath = path.resolve(process.cwd(), '.env');
+
+console.log('LOADING ENVS FROM:', { rootEnvPath, localEnvPath, currentEnvPath });
+
+const r1 = dotenv.config({ path: rootEnvPath });
+const r2 = dotenv.config({ path: localEnvPath });
+const r3 = dotenv.config({ path: currentEnvPath });
+
+if (r1.error && r2.error && r3.error) {
+  console.warn('Warning: Could not find .env file in expected locations.');
+}
+
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const app = express();
 app.use(cors());
@@ -422,8 +446,10 @@ Analyse the interview and return ONLY this JSON (no extra text, all numeric scor
 // --- 11. Real-Time Audio Interview Evaluator ---
 app.post('/api/agents/evaluate-answer', async (req, res) => {
   try {
-    const { userAnswer, currentQuestion, jobDescription } = req.body;
+    const { userAnswer, currentQuestion, jobDescription, sessionId, userId } = req.body;
     if (!userAnswer || !currentQuestion) return res.status(400).json({ error: 'userAnswer and currentQuestion are required' });
+
+    console.log(`[Evaluator] Analysing answer for question: "${currentQuestion?.substring(0, 50)}..."`);
 
     const raw = await callGroq([
       {
@@ -437,23 +463,77 @@ Tasks:
 1. Provide an "optimizedAnswer" that rewrites their answer to sound more professional, succinct, and structured (use STAR method if applicable).
 2. Grade their Tone (Confidence, clarity) on a scale of 0-100.
 3. Grade their Vocabulary (Professionalism, industry keywords) on a scale of 0-100.
-4. Provide a very brief constructive feedback (1-2 sentences).
+4. Provide a ONE-WORD remark for Tone. MUST BE descriptive (e.g., 'Confident', 'Anxious', 'Clear', 'Hesitant', 'Strong'). DO NOT use 'Analyzing'.
+5. Provide a ONE-WORD remark for Vocabulary. MUST BE descriptive (e.g., 'Sophisticated', 'Nuanced', 'Basic', 'Technical', 'Precise'). DO NOT use 'Standard' unless truly standard.
+6. Provide brief constructive feedback (2-3 bullet points). Use markdown '*' for bullets.
 
 Return ONLY this structured JSON (no markdown or extra text):
 {
   "optimizedAnswer": "...",
   "toneScore": 85,
+  "toneRemark": "...",
   "vocabularyScore": 75,
+  "vocabularyRemark": "...",
   "feedback": "..."
 }`
       }
     ], FAST_MODEL, 0.2);
 
+    console.log(`[Evaluator] Groq Response: ${raw}`);
     const evaluation = extractJSON(raw);
+
+    // Save to Supabase if session info is provided
+    if (sessionId && userId) {
+      await supabase.from('session_qa_logs').insert({
+        session_id: sessionId,
+        user_id: userId,
+        question_text: currentQuestion,
+        user_answer_text: userAnswer,
+        ai_feedback_text: evaluation.feedback,
+        score_content: evaluation.toneScore, // using toneScore for now as proxy
+        score_delivery: evaluation.vocabularyScore,
+        is_weakness: evaluation.toneScore < 60
+      });
+    }
+
     res.json(evaluation);
   } catch (error: any) {
     console.error('Real-Time Evaluator Error:', error.message);
     res.status(500).json({ error: 'Failed to evaluate answer', detail: error.message });
+  }
+});
+
+// --- 12. Session Management ---
+app.post('/api/sessions/start', async (req, res) => {
+  try {
+    const { userId, roleFocus, companyFocus } = req.body;
+    const { data, error } = await supabase
+      .from('interview_sessions')
+      .insert({ user_id: userId, role_focus: roleFocus, company_focus: companyFocus, status: 'in_progress' })
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/sessions/complete', async (req, res) => {
+  try {
+    const { sessionId, score } = req.body;
+    const { data, error } = await supabase
+      .from('interview_sessions')
+      .update({ status: 'completed', score: score })
+      .eq('id', sessionId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
   }
 });
 

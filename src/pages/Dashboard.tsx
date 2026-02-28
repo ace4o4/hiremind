@@ -12,7 +12,7 @@ import {
 import { CursorGlow, NeuCard, NeuButton, NeuBackground } from "@/components/LiquidGlass";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from "@/contexts/AuthContext";
-import { getInterviewSessions, getUserProfile } from "@/lib/api";
+import { getInterviewSessions, getUserProfile, getUserMemories } from "@/lib/api";
 
 /* ===== SIDEBAR ===== */
 const Sidebar = ({ activeTab, setActiveTab, onSignOut }: { activeTab: string, setActiveTab: (t: string) => void, onSignOut: () => void }) => (
@@ -40,8 +40,8 @@ const Sidebar = ({ activeTab, setActiveTab, onSignOut }: { activeTab: string, se
           key={item.label}
           onClick={() => setActiveTab(item.label)}
           className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300 ${activeTab === item.label
-              ? "neu-pressed text-blue-600"
-              : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
+            ? "neu-pressed text-blue-600"
+            : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
             }`}
         >
           <item.icon className={`h-4 w-4 ${activeTab === item.label ? 'text-blue-600' : 'text-slate-400'}`} />
@@ -87,14 +87,14 @@ const statsData = [
 ];
 
 /* ===== RECENT SESSION BLOCK ===== */
-const RecentSessionCard = ({ id = "mock-id", title, score, date, tags }: { id?: string; title: string; score: number; date: string; tags: string[] }) => (
-  <Link to={`/report`} className="block group">
+const RecentSessionCard = ({ id, title, score, date, tags }: { id: string; title: string; score: number; date: string; tags: string[] }) => (
+  <Link to={`/report/${id}`} className="block group">
     <NeuCard className="flex items-center gap-4 p-4 cursor-pointer group-hover:bg-white/5 transition-colors">
       <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl font-display text-lg font-black border ${score >= 80
-          ? "bg-primary/10 text-primary border-primary/20"
-          : score >= 60
-            ? "bg-purple-500/10 text-purple border-purple-500/20"
-            : "bg-destructive/10 text-destructive border-destructive/20"
+        ? "bg-primary/10 text-primary border-primary/20"
+        : score >= 60
+          ? "bg-purple-500/10 text-purple border-purple-500/20"
+          : "bg-destructive/10 text-destructive border-destructive/20"
         }`}>
         {score}
       </div>
@@ -154,21 +154,22 @@ const NewInterviewView = ({ sessions, profile }: { sessions: any[], profile: any
           let value = stat.value;
           if (stat.label === "Sessions") value = sessions.length.toString();
           if (stat.label === "Streak") value = `${profile?.current_streak || 0} days`;
-          
+
           return (
-          <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1, type: "spring" }}>
-            <NeuCard className="p-5" as="div">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500">{stat.label}</span>
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg neu-pressed text-blue-600">
-                  <stat.icon className="h-3.5 w-3.5" />
+            <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1, type: "spring" }}>
+              <NeuCard className="p-5" as="div">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500">{stat.label}</span>
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg neu-pressed text-blue-600">
+                    <stat.icon className="h-3.5 w-3.5" />
+                  </div>
                 </div>
-              </div>
-              <p className="mt-2 font-display text-2xl font-black text-slate-800">{value}</p>
-              <p className="mt-1 text-xs font-bold text-blue-500">{stat.change}</p>
-            </NeuCard>
-          </motion.div>
-        )})}
+                <p className="mt-2 font-display text-2xl font-black text-slate-800">{value}</p>
+                <p className="mt-1 text-xs font-bold text-blue-500">{stat.change}</p>
+              </NeuCard>
+            </motion.div>
+          )
+        })}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">
@@ -184,9 +185,9 @@ const NewInterviewView = ({ sessions, profile }: { sessions: any[], profile: any
                   <p className="text-sm font-semibold text-slate-500">Upload your resume & paste the job description</p>
                 </div>
               </div>
-              
-              <NeuButton 
-                variant="primary" 
+
+              <NeuButton
+                variant="primary"
                 className="px-6 py-2 bg-blue-600 text-white font-bold"
                 onClick={() => navigate('/audio-setup')}
               >
@@ -209,17 +210,17 @@ const NewInterviewView = ({ sessions, profile }: { sessions: any[], profile: any
 
             {step === "upload" && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
-                <div 
+                <div
                   className={`relative flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed p-8 transition-all ${dragActive ? 'border-blue-500 bg-blue-50/50' : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50'} group`}
                   onDragEnter={handleDrag}
                   onDragLeave={handleDrag}
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
                 >
-                  <input 
-                    type="file" 
-                    id="resume-upload" 
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                  <input
+                    type="file"
+                    id="resume-upload"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     accept=".pdf,.doc,.docx"
                     onChange={handleChange}
                   />
@@ -231,7 +232,7 @@ const NewInterviewView = ({ sessions, profile }: { sessions: any[], profile: any
                       <p className="text-sm font-bold text-slate-800">{resumeFile.name}</p>
                       <div className="flex items-center justify-center gap-3 mt-2">
                         <span className="text-xs font-semibold text-green-600">Ready for analysis</span>
-                        <button 
+                        <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setResumeFile(null); }}
                           className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-700 bg-red-500/10 hover:bg-red-500/20 px-2 py-1 rounded-md transition-colors cursor-pointer"
                         >
@@ -249,19 +250,19 @@ const NewInterviewView = ({ sessions, profile }: { sessions: any[], profile: any
 
                 <NeuCard className="p-4" variant="pressed">
                   <label className="text-sm font-bold text-slate-700 mb-2 block">Job Description Context</label>
-                  <textarea 
-                    rows={3} 
+                  <textarea
+                    rows={3}
                     value={jobDescription}
                     onChange={(e) => setJobDescription(e.target.value)}
-                    placeholder="Paste the job description or LinkedIn URL..." 
-                    className="w-full bg-transparent p-0 text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none" 
+                    placeholder="Paste the job description or LinkedIn URL..."
+                    className="w-full bg-transparent p-0 text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none"
                   />
                 </NeuCard>
 
                 <div className="flex justify-end pt-2">
-                  <NeuButton 
-                    variant="primary" 
-                    onClick={() => setStep("configure")} 
+                  <NeuButton
+                    variant="primary"
+                    onClick={() => setStep("configure")}
                     className={`text-white px-8 ${!resumeFile && !jobDescription.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
                     disabled={!resumeFile && !jobDescription.trim()}
                   >
@@ -318,17 +319,18 @@ const NewInterviewView = ({ sessions, profile }: { sessions: any[], profile: any
         <div className="lg:col-span-2 space-y-4">
           <h3 className="font-bold text-sm text-slate-800">Recent Sessions</h3>
           {sessions.slice(0, 3).map((s: any, i: number) => (
-             <RecentSessionCard 
-               key={i}
-               title={s.company_focus ? `${s.company_focus} ${s.role_focus}` : 'General Mock Interview'} 
-               score={s.score || 0} 
-               date={new Date(s.created_at).toLocaleDateString()} 
-               tags={[s.company_focus || 'Tech', s.role_focus || 'Role']} 
-             />
+            <RecentSessionCard
+              key={i}
+              id={s.id}
+              title={s.company_focus ? `${s.company_focus} ${s.role_focus}` : 'General Mock Interview'}
+              score={s.score || 0}
+              date={new Date(s.created_at).toLocaleDateString()}
+              tags={[s.company_focus || 'Tech', s.role_focus || 'Role']}
+            />
           ))}
           {sessions.length === 0 && (
             <div className="p-4 text-center rounded-xl neu-flat">
-               <p className="text-xs font-bold text-slate-500">No recent sessions yet.</p>
+              <p className="text-xs font-bold text-slate-500">No recent sessions yet.</p>
             </div>
           )}
         </div>
@@ -340,9 +342,10 @@ const NewInterviewView = ({ sessions, profile }: { sessions: any[], profile: any
 /* ===== VIEW: PAST SESSIONS ===== */
 const PastSessionsView = ({ sessions }: { sessions: any[] }) => {
   const [filter, setFilter] = useState("All");
-  
+
   // Create a mapping or derive tags safely if they don't exist yet
   const formattedSessions = sessions.map(s => ({
+    id: s.id,
     title: s.company_focus ? `${s.company_focus} ${s.role_focus}` : 'General Mock Interview',
     score: s.score || 0,
     date: new Date(s.created_at).toLocaleDateString(),
@@ -378,89 +381,83 @@ const PastSessionsView = ({ sessions }: { sessions: any[] }) => {
 };
 
 /* ===== VIEW: PROGRESS HUB ===== */
-const ProgressHubView = () => (
-  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-    {/* Top Section: Overall & Analysis */}
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+const ProgressHubView = ({ sessions }: { sessions: any[] }) => {
+  const last7 = sessions.slice(0, 7).reverse();
+  const avgScore = sessions.length > 0
+    ? Math.round(sessions.reduce((a, b) => a + (b.score || 0), 0) / sessions.length)
+    : 0;
 
-      {/* Overall Score */}
-      <NeuCard className="lg:col-span-1 flex flex-col items-center justify-center p-8">
-        <h3 className="text-slate-500 font-bold text-sm mb-6 uppercase tracking-widest w-full text-center">Overall Fit Score</h3>
-
-        <div className="relative w-48 h-48 mb-8">
-          <svg className="w-full h-full transform -rotate-90">
-            <circle cx="96" cy="96" r="84" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-200" />
-            <circle cx="96" cy="96" r="84" stroke="currentColor" strokeWidth="12" fill="transparent" strokeDasharray="448 528" className="text-blue-500" strokeLinecap="round" />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-6xl font-black text-slate-800">85</span>
-            <span className="text-sm font-bold text-slate-400">/ 100</span>
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <NeuCard className="lg:col-span-1 flex flex-col items-center justify-center p-8">
+          <h3 className="text-slate-500 font-bold text-sm mb-6 uppercase tracking-widest w-full text-center">Overall Fit Score</h3>
+          <div className="relative w-48 h-48 mb-8">
+            <svg className="w-full h-full transform -rotate-90">
+              <circle cx="96" cy="96" r="84" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-200" />
+              <circle cx="96" cy="96" r="84" stroke="currentColor" strokeWidth="12" fill="transparent" strokeDasharray="448 528" strokeDashoffset={528 - (528 * avgScore) / 100} className="text-blue-500 transition-all duration-1000" strokeLinecap="round" />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-6xl font-black text-slate-800">{avgScore}</span>
+              <span className="text-sm font-bold text-slate-400">/ 100</span>
+            </div>
           </div>
-        </div>
-      </NeuCard>
+        </NeuCard>
 
-      {/* Score History Chart Placeholder */}
-      <NeuCard className="lg:col-span-2 p-8">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="font-bold text-slate-800">Score History</h3>
-          <select className="neu-pressed rounded-lg text-xs font-bold text-slate-600 px-3 py-1.5 outline-none cursor-pointer">
-            <option>Last 30 Days</option>
-          </select>
-        </div>
-
-        <div className="h-64 flex items-end justify-between border-b border-slate-200 pb-2 relative px-4">
-          {[40, 60, 45, 70, 65, 85, 78].map((val, i) => (
-            <div key={i} className="w-8 ml-2 bg-blue-100 hover:bg-blue-300 rounded-t-lg transition-all relative group cursor-pointer neu-flat border-none" style={{ height: `${val}%` }}>
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded transition-opacity">{val}</div>
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-between mt-4 text-[10px] font-bold text-slate-400 px-6">
-          <span>W1</span><span>W2</span><span>W3</span><span>W4</span><span>W5</span><span>W6</span><span>Now</span>
-        </div>
-      </NeuCard>
-    </div>
-  </motion.div>
-);
-
-/* ===== VIEW: SKILL MAP ===== */
-const SkillMapView = () => (
-  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-    {/* Sidebar / Secondary content */}
-    <div className="space-y-8">
-      <NeuCard className="p-6">
-        <h3 className="flex items-center gap-2 font-bold text-slate-800 mb-6">
-          <Clock className="h-4 w-4 text-blue-500" /> Recent Sessions
-        </h3>
-        <div className="space-y-4">
-          {[
-            { r: "Frontend Engineer", c: "Spotify", t: "2 days ago", s: "82/100" },
-            { r: "Full Stack Developer", c: "Stripe", t: "1 week ago", s: "75/100" },
-            { r: "System Design", c: "Netflix", t: "2 weeks ago", s: "88/100" },
-          ].map((sesh, i) => (
-            <div key={i} className="group flex cursor-pointer items-start justify-between rounded-2xl p-4 neu-flat hover:scale-[1.02] transition-transform">
-              <div>
-                <p className="text-sm font-bold text-slate-800">{sesh.r}</p>
-                <p className="text-xs font-semibold text-slate-500">{sesh.c} • {sesh.t}</p>
+        <NeuCard className="lg:col-span-2 p-8">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="font-bold text-slate-800">Score History (Last 7 Sessions)</h3>
+          </div>
+          <div className="h-64 flex items-end justify-between border-b border-slate-200 pb-2 relative px-4 gap-2">
+            {last7.map((s, i) => (
+              <div key={i} className="flex-1 bg-blue-100 hover:bg-blue-300 rounded-t-lg transition-all relative group cursor-pointer neu-flat border-none" style={{ height: `${s.score || 10}%` }}>
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded transition-opacity whitespace-nowrap">{s.score || 0}%</div>
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full neu-pressed text-xs font-bold text-blue-600">
-                <ChevronRight className="h-4 w-4" />
-              </div>
-            </div>
-          ))}
-        </div>
-        <NeuButton className="w-full mt-6 py-2 text-xs">View All History</NeuButton>
-      </NeuCard>
+            ))}
+            {last7.length < 7 && Array.from({ length: 7 - last7.length }).map((_, i) => (
+              <div key={`empty-${i}`} className="flex-1 h-4 bg-slate-50 rounded-t-lg border-none" />
+            ))}
+          </div>
+          <div className="flex justify-between mt-4 text-[10px] font-bold text-slate-400 px-2 lg:px-6">
+            <span>S1</span><span>S2</span><span>S3</span><span>S4</span><span>S5</span><span>S6</span><span>Latest</span>
+          </div>
+        </NeuCard>
+      </div>
+    </motion.div>
+  );
+};
 
-      <NeuCard className="p-6 flex flex-col justify-center items-center text-center">
-        <Trophy className="h-12 w-12 text-amber-500 mb-4" />
-        <h3 className="text-xl font-bold text-slate-800">Top Achiever</h3>
-        <p className="text-xs font-semibold text-slate-500 mt-2">You are currently scoring in the top 15% of all candidates for Senior Frontend roles.</p>
-        <NeuButton variant="primary" className="mt-6 text-xs px-6 py-2">View Benchmark</NeuButton>
-      </NeuCard>
-    </div>
-  </motion.div>
-);
+const SkillMapView = ({ sessions }: { sessions: any[] }) => {
+  const recent3 = sessions.slice(0, 3);
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      <div className="space-y-8">
+        <NeuCard className="p-6">
+          <h3 className="flex items-center gap-2 font-bold text-slate-800 mb-6">
+            <Clock className="h-4 w-4 text-blue-500" /> Recent Sessions Detail
+          </h3>
+          <div className="space-y-4">
+            {recent3.map((sesh, i) => (
+              <Link to={`/report/${sesh.id}`} key={i} className="group flex cursor-pointer items-start justify-between rounded-2xl p-4 neu-flat hover:scale-[1.02] transition-transform">
+                <div>
+                  <p className="text-sm font-bold text-slate-800">{sesh.role_focus || 'Technical'}</p>
+                  <p className="text-xs font-semibold text-slate-500">{sesh.company_focus || 'General'} • {new Date(sesh.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-xs font-black text-blue-600">{sesh.score || 0}/100</span>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full neu-pressed text-xs font-bold text-blue-600">
+                    <ChevronRight className="h-4 w-4" />
+                  </div>
+                </div>
+              </Link>
+            ))}
+            {recent3.length === 0 && <p className="text-center text-xs font-bold text-slate-500 py-4">No sessions found.</p>}
+          </div>
+        </NeuCard>
+      </div>
+    </motion.div>
+  );
+};
 
 /* ===== VIEW: PANEL MODE ===== */
 const PanelModeView = () => {
@@ -468,19 +465,19 @@ const PanelModeView = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const personas = [
-    { 
+    {
       id: "p1", name: "The Architect", desc: "Strict system design, scalability, and code structure focus.", icon: Brain, color: "text-purple-600",
       avatarUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=600&auto=format&fit=crop",
       simliFaceId: "tmp9c84fa1b-d1ec-4c17-9005-ed9c68097d2d", // Example male professional face
       voiceParams: { pitch: 0.8, rate: 1.0 }
     },
-    { 
+    {
       id: "p2", name: "The Executive", desc: "Lenient and focuses on ROI, leadership, and product strategy.", icon: Briefcase, color: "text-emerald-600",
       avatarUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=600&auto=format&fit=crop",
       simliFaceId: "c2c5eb29-2ec8-4903-abd6-946460fae2fc", // Example female professional face
       voiceParams: { pitch: 1.2, rate: 0.95 }
     },
-    { 
+    {
       id: "p3", name: "The Debugger", desc: "Deep technical trivia, live bug-hunting, extremely logical.", icon: Zap, color: "text-amber-600",
       avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop",
       simliFaceId: "5514e24d-6086-46a3-ace4-6a7264e5cb7c", // Example distinct male face
@@ -503,7 +500,7 @@ const PanelModeView = () => {
     const selectedPersonas = personas
       .filter(p => selectedIds.includes(p.id))
       .map(({ icon, ...serializablePersona }) => serializablePersona); // Strip non-serializable React Component
-      
+
     navigate('/virtual-room', { state: { selectedPersonas } });
   };
 
@@ -517,8 +514,8 @@ const PanelModeView = () => {
           {personas.map((persona) => {
             const isSelected = selectedIds.includes(persona.id);
             return (
-              <NeuCard 
-                key={persona.id} 
+              <NeuCard
+                key={persona.id}
                 className={`p-6 text-center group cursor-pointer transition-all duration-300 ${isSelected ? 'ring-2 ring-blue-500 shadow-md bg-blue-50/10' : 'hover:scale-[1.02]'}`}
                 onClick={() => handleSelect(persona.id)}
               >
@@ -539,9 +536,9 @@ const PanelModeView = () => {
           })}
         </div>
         <div className="mt-8 flex flex-col items-center">
-          <NeuButton 
-            variant="primary" 
-            className="px-12 py-4 text-white disabled:opacity-50 disabled:cursor-not-allowed" 
+          <NeuButton
+            variant="primary"
+            className="px-12 py-4 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={selectedIds.length === 0}
             onClick={startSession}
           >
@@ -554,24 +551,29 @@ const PanelModeView = () => {
 };
 
 /* ===== VIEW: MEMORY BANK ===== */
-const MemoryBankView = () => (
+const MemoryBankView = ({ memories }: { memories: any[] }) => (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-    <h2 className="font-display text-xl font-bold text-foreground mb-4">Feedback Vault</h2>
-    {[
-      { icon: Shield, title: "System Design: Microservices", desc: "You struggled to explain when NOT to use microservices. Focus on studying monolithic tradeoffs.", color: "text-blue-400" },
-      { icon: TrendingUp, title: "Behavioral: Conflict Resolution", desc: "Excellent framing! Your story about the uncooperative designer was perfectly structured.", color: "text-emerald-400" },
-      { icon: AlertCircle, title: "Technical: Time Complexity", desc: "You guessed O(N log N) initially without tracing the loops. Always trace before stating the bounds.", color: "text-amber-400" }
-    ].map((item, i) => (
+    <h2 className="font-display text-xl font-bold text-slate-800 mb-4">Feedback Vault</h2>
+    <p className="text-xs font-bold text-slate-500 mb-4 tracking-widest uppercase">Strengths & Improvement Areas from Past Answers</p>
+
+    {memories.map((item, i) => (
       <NeuCard key={i} className="flex gap-4 p-5 hover:bg-white/5 cursor-pointer">
-        <div className={`mt-0.5 p-2 rounded-lg bg-white/5 ${item.color}`}>
-          <item.icon className="h-5 w-5 fill-current/20" />
+        <div className={`mt-0.5 p-2 rounded-xl neu-convex ${i % 3 === 0 ? 'text-blue-500' : i % 3 === 1 ? 'text-purple-500' : 'text-emerald-500'}`}>
+          <BrainCircuit className="h-5 w-5" />
         </div>
         <div>
-          <h4 className="font-bold text-sm text-foreground">{item.title}</h4>
-          <p className="text-xs text-muted-foreground leading-relaxed mt-1">{item.desc}</p>
+          <h4 className="font-bold text-sm text-slate-800">{item.current_question?.substring(0, 60)}...</h4>
+          <p className="text-xs text-slate-500 leading-relaxed mt-1 italic">"{item.constructive_feedback?.substring(0, 150)}..."</p>
+          <p className="text-[10px] font-black text-slate-400 mt-2 uppercase tracking-widest">{new Date(item.created_at).toLocaleDateString()}</p>
         </div>
       </NeuCard>
     ))}
+
+    {memories.length === 0 && (
+      <div className="py-12 text-center neu-flat rounded-2xl">
+        <p className="text-sm font-bold text-slate-500">No feedback saved in your vault yet. Complete an interview to start building your memory bank!</p>
+      </div>
+    )}
   </motion.div>
 );
 
@@ -581,9 +583,10 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("New Interview");
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  
+
   const [profile, setProfile] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [memories, setMemories] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   // Calculate dynamic scroll progress based on the active tab index
@@ -597,26 +600,28 @@ const Dashboard = () => {
   useEffect(() => {
     rawProgress.set(targetProgress);
   }, [targetProgress, rawProgress]);
-  
+
   // Fetch real data from Supabase
   useEffect(() => {
     const loadData = async () => {
       if (!user) return;
       try {
         setLoadingData(true);
-        const [profileData, sessionsData] = await Promise.all([
+        const [profileData, sessionsData, memoriesData] = await Promise.all([
           getUserProfile(user.id).catch(() => null), // Graceful fail if profile not trigger-created yet
-          getInterviewSessions(user.id)
+          getInterviewSessions(user.id),
+          getUserMemories(user.id)
         ]);
         setProfile(profileData);
         setSessions(sessionsData || []);
+        setMemories(memoriesData || []);
       } catch (err) {
         console.error("Failed to load dashboard data", err);
       } finally {
         setLoadingData(false);
       }
     };
-    
+
     loadData();
   }, [user]);
 
@@ -671,10 +676,10 @@ const Dashboard = () => {
             >
               {activeTab === "New Interview" && <NewInterviewView sessions={sessions} profile={profile} />}
               {activeTab === "Past Sessions" && <PastSessionsView sessions={sessions} />}
-              {activeTab === "Progress Hub" && <ProgressHubView />}
-              {activeTab === "Skill Map" && <SkillMapView />}
+              {activeTab === "Progress Hub" && <ProgressHubView sessions={sessions} />}
+              {activeTab === "Skill Map" && <SkillMapView sessions={sessions} />}
               {activeTab === "Panel Mode" && <PanelModeView />}
-              {activeTab === "Memory Bank" && <MemoryBankView />}
+              {activeTab === "Memory Bank" && <MemoryBankView memories={memories} />}
             </motion.div>
           </AnimatePresence>
         </div>
