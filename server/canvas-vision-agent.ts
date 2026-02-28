@@ -1,31 +1,26 @@
-import { ChatOpenAI } from "@langchain/openai";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import dotenv from "dotenv";
 
 dotenv.config({ path: '../.env' });
 
-const visionLlm = new ChatOpenAI({
-  modelName: "gpt-4o", // Must be a vision-capable model
-  temperature: 0.3,
-  openAIApiKey: process.env.OPENAI_API_KEY,
-});
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 
 /**
- * 1. Interface for the Vision Canvas Agent
- * Receives a Base64 encoded screenshot of the user's current drawing/architecture 
+ * Evaluates a candidate's system-design whiteboard using Groq's vision model.
+ * Receives a Base64 encoded screenshot of the user's current drawing/architecture
  * from the frontend (e.g., Tldraw or Excalidraw integration).
  */
 export async function evaluateCanvasDesign(
-    base64Image: string, 
+    base64Image: string,
     currentQuestionContext: string,
     previousCanvasStateSummary: string = ""
 ): Promise<{ actionable_feedback: string, new_followup_question: string }> {
 
   try {
     const systemPrompt = `
-      You are an elite Staff Software Engineer conducting a System Design Interview. 
+      You are an elite Staff Software Engineer conducting a System Design Interview.
       You are looking at a live whiteboard/canvas drawn by the candidate.
-      
+
       Current Interview Context (What you asked them to design):
       ${currentQuestionContext}
 
@@ -33,41 +28,57 @@ export async function evaluateCanvasDesign(
 
       Analyze the image of the architecture they are drawing.
       1. Point out one critical missing component, bottleneck, or single point of failure.
-      2. Ask a highly specific follow-up question based *exactly* on what they have drawn so far (e.g., "I see you put a Redis cache between the API and DB, what happens to inflight requests if the cache cluster dies?").
+      2. Ask a highly specific follow-up question based *exactly* on what they have drawn so far.
 
-      Return EXACTLY a JSON object with two string keys: 
+      Return EXACTLY a JSON object with two string keys:
       - "actionable_feedback": A brief statement pointing out the flaw or interesting choice.
       - "new_followup_question": The specific architectural question.
       No markdown, just raw JSON.
     `;
 
-    // Construct the payload for the Vision Model
-    const messages = [
-        new SystemMessage(systemPrompt),
-        new HumanMessage({
+    const response = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: GROQ_VISION_MODEL,
+        temperature: 0.3,
+        max_tokens: 1024,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
             content: [
-                { type: "text", text: "Here is the candidate's current whiteboard architecture." },
-                {
-                    type: "image_url",
-                    image_url: {
-                        url: `data:image/png;base64,${base64Image}`,
-                        detail: "high"
-                    },
+              { type: 'text', text: "Here is the candidate's current whiteboard architecture." },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/png;base64,${base64Image}`,
                 },
+              },
             ],
-        }),
-    ];
+          },
+        ],
+      }),
+    });
 
-    const response = await visionLlm.invoke(messages);
-    
+    if (!response.ok) {
+      throw new Error(`Groq Vision ${response.status}: ${await response.text()}`);
+    }
+
+    const data = await response.json() as any;
+    const rawContent = (data.choices[0].message.content as string)
+      .replace(/```json/g, '').replace(/```/g, '').trim();
+
     try {
-        const cleanContent = response.content.toString().replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(cleanContent);
-    } catch(e) {
-        return { 
-            actionable_feedback: "Could not clearly parse the architecture diagram.",
-            new_followup_question: "Could you walk me through the specific components you've drawn so far?" 
-        };
+      return JSON.parse(rawContent);
+    } catch {
+      return {
+        actionable_feedback: "Could not clearly parse the architecture diagram.",
+        new_followup_question: "Could you walk me through the specific components you've drawn so far?"
+      };
     }
 
   } catch (error) {
