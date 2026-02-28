@@ -2,10 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Mic, MicOff, PhoneOff, Video, VideoOff, Settings, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SimliClient, generateSimliSessionToken, generateIceServers } from "simli-client";
-
-// The user provided API key for Simli
-const SIMLI_API_KEY = "5n7ym7pi9slu17wyam75og";
+import StreamingAvatar, { AvatarQuality, StreamingEvents, TaskType } from "@heygen/streaming-avatar";
 
 interface Persona {
   name: string;
@@ -41,10 +38,9 @@ export default function VirtualInterviewRoom() {
 
   const recognitionRef = useRef<any>(null);
 
-  // Simli Clients map: { personaId: SimliClient }
-  const simliClientsRef = useRef<Record<string, SimliClient>>({});
+  // HeyGen Clients map: { personaId: StreamingAvatar }
+  const heygenClientsRef = useRef<Record<string, StreamingAvatar>>({});
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
-  const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
 
   // Fallback if no personas selected
   useEffect(() => {
@@ -53,61 +49,67 @@ export default function VirtualInterviewRoom() {
     }
   }, [selectedPersonas, navigate]);
 
-  // Initialize Simli Clients for each persona
+  // Initialize HeyGen Clients for each persona
   useEffect(() => {
     if (selectedPersonas.length === 0) return;
 
     let isMounted = true;
-    const clientsToCleanUp: SimliClient[] = [];
+    const clientsToCleanUp: StreamingAvatar[] = [];
 
     const initClients = async () => {
       try {
-        const iceServers = await generateIceServers(SIMLI_API_KEY);
+        // Fetch token securely from backend
+        const tokenRes = await fetch('http://localhost:3001/api/heygen-token', { method: 'POST' });
+        if (!tokenRes.ok) throw new Error("Failed to get HeyGen token");
+        const { token } = await tokenRes.json();
 
         for (const persona of selectedPersonas) {
           if (!isMounted) break;
 
           try {
-            const sessionReq = {
-              faceId: persona.simliFaceId || "tmp9c84fa1b-d1ec-4c17-9005-ed9c68097d2d",
-              handleSilence: true,
-              maxSessionLength: 3600,
-              maxIdleTime: 3600,
-            };
+            const avatar = new StreamingAvatar({ token });
+            clientsToCleanUp.push(avatar);
 
-            const tokenResponse = await generateSimliSessionToken({
-              config: sessionReq,
-              apiKey: SIMLI_API_KEY
+            // Handle Video Stream
+            avatar.on(StreamingEvents.STREAM_READY, (event: any) => {
+              console.log(`HeyGen Stream ready for ${persona.name}`);
+              if (videoRefs.current[persona.id] && event.detail) {
+                videoRefs.current[persona.id]!.srcObject = event.detail;
+              }
             });
 
-            const client = new SimliClient(
-              tokenResponse.session_token,
-              videoRefs.current[persona.id]!,
-              audioRefs.current[persona.id]!,
-              iceServers
-            );
-            
-            clientsToCleanUp.push(client);
-
-            client.on("start", () => {
-              console.log(`SimliClient started for ${persona.name}`);
+            // Handle UI States seamlessly
+            avatar.on(StreamingEvents.AVATAR_START_TALKING, () => {
+               if (isMounted) {
+                 setActiveSpeakerId(persona.id);
+                 setIsAiThinking(false);
+                 setMicActive(false);
+               }
             });
 
-            client.on("stop", () => {
-              console.log(`SimliClient stopped from ${persona.name}`);
+            avatar.on(StreamingEvents.AVATAR_STOP_TALKING, () => {
+               if (isMounted) {
+                 setActiveSpeakerId(null);
+                 setMicActive(true);
+               }
             });
 
-            await client.start();
+            // Start the Streaming WebRTC connection
+            await avatar.createStartAvatar({
+              quality: AvatarQuality.Low,
+              avatarName: persona.simliFaceId || "99160ec3aef04ddab034f4a306665d00",
+            });
+
             if (isMounted) {
-              simliClientsRef.current[persona.id] = client;
+              heygenClientsRef.current[persona.id] = avatar;
             }
           } catch (personaErr: any) {
-            console.warn(`Simli init skipped for ${persona.name} (Likely Rate Limit on Free Tier):`, personaErr.message || personaErr);
+            console.warn(`HeyGen init skipped for ${persona.name} (Likely limits):`, personaErr.message || personaErr);
             if (isMounted) setFailedPersonas(prev => ({ ...prev, [persona.id]: true }));
           }
         }
       } catch (err) {
-        console.error("Failed to fetch ICE servers:", err);
+        console.error("Initialization error:", err);
       }
     };
 
@@ -115,11 +117,11 @@ export default function VirtualInterviewRoom() {
 
     return () => {
       isMounted = false;
-      // Cleanup all instantiated clients to prevent session leaks
+      // Cleanup all instantiated clients to prevent leaks
       clientsToCleanUp.forEach(client => {
-        try { client.stop(); } catch(e) {}
+        try { client.stopAvatar(); } catch(e) {}
       });
-      simliClientsRef.current = {};
+      heygenClientsRef.current = {};
     };
   }, [selectedPersonas]);
 
@@ -204,61 +206,28 @@ export default function VirtualInterviewRoom() {
     }
   };
 
-  // Function to convert text to audio bytes (using ElevenLabs or OpenAI TTS API ideally, 
-  // but for hackathon we will use a browser trick or directly use Simli's built-in textToAudio if available.
-  // Since Simli SDK expects PCM16 audio data via `sendAudioData`, we will use the OpenAI TTS endpoint proxy in our server).
+  // Trigger HeyGen natively
   const speakAiResponse = async (text: string, avatar: Persona) => {
-    setActiveSpeakerId(avatar.id);
+    setIsAiThinking(true); 
     
     try {
-      // 1. Get Audio Data from our server's TTS proxy
-      const ttsRes = await fetch('http://localhost:3001/api/agents/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          text, 
-          voice: avatar.id === 'p1' ? 'onyx' : 'nova',
-          speed: aiSpeed 
-        })
-      });
-      
-      if (!ttsRes.ok) throw new Error("TTS failed");
-      
-      const audioBlob = await ttsRes.blob();
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const audioContext = new window.AudioContext();
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-      
-      // Convert Float32Array to Int16Array PCM
-      const channelData = audioBuffer.getChannelData(0);
-      const pcm16 = new Int16Array(channelData.length);
-      for (let i = 0; i < channelData.length; i++) {
-        const s = Math.max(-1, Math.min(1, channelData[i]));
-        pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-      }
-      
-      const client = simliClientsRef.current[avatar.id];
+      const client = heygenClientsRef.current[avatar.id];
       if (client) {
-        // Send PCM16 data to Simli Client (it expects Uint8Array of PCM16)
-        client.sendAudioData(new Uint8Array(pcm16.buffer));
+        // Triggers the HeyGen Cloud TTS, which eventually fires AVATAR_START_TALKING
+        await client.speak({ text, taskType: TaskType.TALK });
       } else {
-        // Fallback: If free tier rate limit was hit, play audio natively without video tracking
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-        audio.play();
+        // Fallback: If limits hit, emulate the timing
+        setActiveSpeakerId(avatar.id);
+        const estimatedDurationMs = (text.split(" ").length / 2.5) * 1000;
+        setTimeout(() => {
+          setActiveSpeakerId(null);
+          setIsAiThinking(false);
+          setMicActive(true);
+        }, estimatedDurationMs);
       }
-
-      // Estimate audio duration to re-enable mic
-      const durationMs = audioBuffer.duration * 1000;
-      setTimeout(() => {
-        setActiveSpeakerId(null);
-        setIsAiThinking(false);
-        setMicActive(true); // Re-enable mic for user
-      }, durationMs + 500);
-
     } catch (e) {
-      console.error("Simli TTS Audio Sync failed fallback", e);
-      // Fallback to basic browser TTS if no audio bytes
+      console.error("HeyGen speak failed", e);
+      // Fallback
       setIsAiThinking(false);
       setMicActive(true);
     }
@@ -305,10 +274,10 @@ export default function VirtualInterviewRoom() {
   }, []);
 
   const handleEndInterview = () => {
-    Object.values(simliClientsRef.current).forEach(c => {
-      try { c.stop(); } catch(e) {}
+    Object.values(heygenClientsRef.current).forEach(c => {
+      try { c.stopAvatar(); } catch(e) {}
     });
-    simliClientsRef.current = {};
+    heygenClientsRef.current = {};
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch(e) {}
     }
@@ -358,17 +327,13 @@ export default function VirtualInterviewRoom() {
                 </div>
               )}
 
-              {/* Simli WebRTC Video & Audio streams */}
+              {/* HeyGen WebRTC Video stream */}
               <video 
                 ref={(el) => { videoRefs.current[persona.id] = el; }}
                 autoPlay 
                 playsInline 
-                muted // Video is visually muted, Audio element handles sound
+                 // Video is NOT muted because audio runs directly through this WebRTC connection hook
                 className={`absolute inset-0 w-full h-full object-cover z-20 ${failedPersonas[persona.id] ? 'hidden' : ''}`}
-              />
-              <audio 
-                ref={(el) => { audioRefs.current[persona.id] = el; }}
-                autoPlay 
               />
 
               {/* Static visual fallback for when WebRTC Rate Limit fails on free tier */}
@@ -381,7 +346,7 @@ export default function VirtualInterviewRoom() {
                   />
                   <div className="absolute inset-0 bg-black/40 mix-blend-multiply pointer-events-none" />
                   <p className="z-40 text-red-300 font-bold bg-black/60 px-4 py-2 rounded-lg backdrop-blur-sm border border-red-500/30 text-sm">
-                    Simli Concurrent Stream Limit Reached - Offline Mode
+                    HeyGen Stream Limit Reached - Fallback Mode
                   </p>
                 </div>
               )}

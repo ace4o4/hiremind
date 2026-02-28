@@ -54,6 +54,33 @@ const openaiClient = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "sk-dummy-key-for-local-dev",
 });
 
+// --- 1. HeyGen Token Generation Endpoint ---
+app.post('/api/heygen-token', async (req, res) => {
+  try {
+    const apiKey = process.env.HEYGEN_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "Missing HEYGEN_API_KEY in backend" });
+    }
+
+    const response = await fetch("https://api.heygen.com/v1/streaming.create_token", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HeyGen API error: ${response.status}`);
+    }
+
+    const data = await response.json() as any;
+    res.json({ token: data.data.token });
+  } catch (error: any) {
+    console.error("Failed to generate HeyGen token:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // --- 0. TTS Streaming Endpoint for Simli Avatars ---
 app.post('/api/agents/tts', async (req, res) => {
   try {
