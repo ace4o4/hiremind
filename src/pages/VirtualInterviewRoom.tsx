@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Mic, MicOff, PhoneOff, Video, VideoOff, Settings } from "lucide-react";
+import { Mic, MicOff, PhoneOff, Video, VideoOff, Settings, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SimliClient, generateSimliSessionToken, generateIceServers } from "simli-client";
 
 // The user provided API key for Simli
-const SIMLI_API_KEY = "ovk8hzmy5mjdgdmnmtwexm";
+const SIMLI_API_KEY = "5n7ym7pi9slu17wyam75og";
 
 interface Persona {
   name: string;
@@ -30,6 +30,14 @@ export default function VirtualInterviewRoom() {
   const [history, setHistory] = useState<{ role: string, content: string }[]>([]);
   const [transcript, setTranscript] = useState("");
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [failedPersonas, setFailedPersonas] = useState<Record<string, boolean>>({});
+
+  // Settings State
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedMic, setSelectedMic] = useState<string>("");
+  const [selectedCam, setSelectedCam] = useState<string>("");
+  const [aiSpeed, setAiSpeed] = useState<number>(1.0);
 
   const recognitionRef = useRef<any>(null);
 
@@ -50,6 +58,7 @@ export default function VirtualInterviewRoom() {
     if (selectedPersonas.length === 0) return;
 
     let isMounted = true;
+    const clientsToCleanUp: SimliClient[] = [];
 
     const initClients = async () => {
       try {
@@ -58,43 +67,47 @@ export default function VirtualInterviewRoom() {
         for (const persona of selectedPersonas) {
           if (!isMounted) break;
 
-          const sessionReq = {
-            faceId: persona.simliFaceId || "tmp9c84fa1b-d1ec-4c17-9005-ed9c68097d2d",
-            handleSilence: true,
-            maxSessionLength: 3600,
-            maxIdleTime: 3600,
-          };
+          try {
+            const sessionReq = {
+              faceId: persona.simliFaceId || "tmp9c84fa1b-d1ec-4c17-9005-ed9c68097d2d",
+              handleSilence: true,
+              maxSessionLength: 3600,
+              maxIdleTime: 3600,
+            };
 
-          const tokenResponse = await generateSimliSessionToken({
-            config: sessionReq,
-            apiKey: SIMLI_API_KEY
-          });
+            const tokenResponse = await generateSimliSessionToken({
+              config: sessionReq,
+              apiKey: SIMLI_API_KEY
+            });
 
-          // Constructor signature: session_token, video, audio, iceServers, ...
-          const client = new SimliClient(
-            tokenResponse.session_token,
-            videoRefs.current[persona.id]!,
-            audioRefs.current[persona.id]!,
-            iceServers
-          );
+            const client = new SimliClient(
+              tokenResponse.session_token,
+              videoRefs.current[persona.id]!,
+              audioRefs.current[persona.id]!,
+              iceServers
+            );
+            
+            clientsToCleanUp.push(client);
 
-          client.on("start", () => {
-            console.log(`SimliClient started for ${persona.name}`);
-          });
+            client.on("start", () => {
+              console.log(`SimliClient started for ${persona.name}`);
+            });
 
-          client.on("stop", () => {
-            console.log(`SimliClient stopped from ${persona.name}`);
-          });
+            client.on("stop", () => {
+              console.log(`SimliClient stopped from ${persona.name}`);
+            });
 
-          await client.start();
-          if (isMounted) {
-            simliClientsRef.current[persona.id] = client;
-          } else {
-            client.stop();
+            await client.start();
+            if (isMounted) {
+              simliClientsRef.current[persona.id] = client;
+            }
+          } catch (personaErr: any) {
+            console.warn(`Simli init skipped for ${persona.name} (Likely Rate Limit on Free Tier):`, personaErr.message || personaErr);
+            if (isMounted) setFailedPersonas(prev => ({ ...prev, [persona.id]: true }));
           }
         }
       } catch (err) {
-        console.error("Failed to init Simli clients:", err);
+        console.error("Failed to fetch ICE servers:", err);
       }
     };
 
@@ -102,10 +115,11 @@ export default function VirtualInterviewRoom() {
 
     return () => {
       isMounted = false;
-      // Cleanup
-      Object.values(simliClientsRef.current).forEach(client => {
-        client.stop();
+      // Cleanup all instantiated clients to prevent session leaks
+      clientsToCleanUp.forEach(client => {
+        try { client.stop(); } catch(e) {}
       });
+      simliClientsRef.current = {};
     };
   }, [selectedPersonas]);
 
@@ -197,12 +211,15 @@ export default function VirtualInterviewRoom() {
     setActiveSpeakerId(avatar.id);
     
     try {
-      // 1. Get Audio Data from our server's TTS proxy (assuming we add one, or we use browser TTS as a fallback string-to-buffer)
-      // For immediate hackathon WebRTC visual sync, the easiest is to ask the server to generate OpenAI TTS bytes.
+      // 1. Get Audio Data from our server's TTS proxy
       const ttsRes = await fetch('http://localhost:3001/api/agents/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice: avatar.id === 'p1' ? 'onyx' : 'nova' })
+        body: JSON.stringify({ 
+          text, 
+          voice: avatar.id === 'p1' ? 'onyx' : 'nova',
+          speed: aiSpeed 
+        })
       });
       
       if (!ttsRes.ok) throw new Error("TTS failed");
@@ -224,6 +241,11 @@ export default function VirtualInterviewRoom() {
       if (client) {
         // Send PCM16 data to Simli Client (it expects Uint8Array of PCM16)
         client.sendAudioData(new Uint8Array(pcm16.buffer));
+      } else {
+        // Fallback: If free tier rate limit was hit, play audio natively without video tracking
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        audio.play();
       }
 
       // Estimate audio duration to re-enable mic
@@ -269,11 +291,31 @@ export default function VirtualInterviewRoom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Fetch Devices for Settings
+  useEffect(() => {
+    if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+      navigator.mediaDevices.enumerateDevices().then(deviceInfos => {
+        setDevices(deviceInfos);
+        const audioInputs = deviceInfos.filter(d => d.kind === 'audioinput');
+        const videoInputs = deviceInfos.filter(d => d.kind === 'videoinput');
+        if (audioInputs.length > 0 && !selectedMic) setSelectedMic(audioInputs[0].deviceId);
+        if (videoInputs.length > 0 && !selectedCam) setSelectedCam(videoInputs[0].deviceId);
+      });
+    }
+  }, []);
+
   const handleEndInterview = () => {
-    Object.values(simliClientsRef.current).forEach(c => c.stop());
-    if (recognitionRef.current) recognitionRef.current.stop();
-    // Navigate to report processing or dashboard
-    navigate('/report');
+    Object.values(simliClientsRef.current).forEach(c => {
+      try { c.stop(); } catch(e) {}
+    });
+    simliClientsRef.current = {};
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch(e) {}
+    }
+    
+    // Save history to localStorage and go to report
+    localStorage.setItem('lastInterviewSession', JSON.stringify(history));
+    navigate('/report', { state: { sessionData: history } });
   };
 
   return (
@@ -293,7 +335,10 @@ export default function VirtualInterviewRoom() {
             <span className="text-sm font-semibold tracking-wider">REC</span>
             <span className="text-xs text-slate-400 ml-2">Panel Session</span>
           </div>
-          <button className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+          <button 
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+          >
             <Settings className="w-5 h-5 text-slate-300" />
           </button>
         </header>
@@ -306,21 +351,40 @@ export default function VirtualInterviewRoom() {
               className={`relative rounded-3xl overflow-hidden bg-slate-800 border-2 transition-colors duration-500 ${activeSpeakerId === persona.id ? 'border-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.3)]' : 'border-slate-700/50'}`}
               layout
             >
+              {/* Loading Indicator */}
+              {!failedPersonas[persona.id] && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-800 text-slate-500 text-sm font-bold animate-pulse z-10">
+                  Connecting to Stream...
+                </div>
+              )}
+
               {/* Simli WebRTC Video & Audio streams */}
-              <div className="absolute inset-0 flex items-center justify-center bg-slate-800 text-slate-500 text-xs font-bold animate-pulse">
-                Initializing 3D Stream...
-              </div>
               <video 
                 ref={(el) => { videoRefs.current[persona.id] = el; }}
                 autoPlay 
                 playsInline 
                 muted // Video is visually muted, Audio element handles sound
-                className="absolute inset-0 w-full h-full object-cover z-10"
+                className={`absolute inset-0 w-full h-full object-cover z-20 ${failedPersonas[persona.id] ? 'hidden' : ''}`}
               />
               <audio 
                 ref={(el) => { audioRefs.current[persona.id] = el; }}
                 autoPlay 
               />
+
+              {/* Static visual fallback for when WebRTC Rate Limit fails on free tier */}
+              {failedPersonas[persona.id] && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-900">
+                   <img 
+                    src={persona.avatarUrl} 
+                    alt={persona.name}
+                    className="absolute inset-0 w-full h-full object-cover opacity-80 pointer-events-none"
+                  />
+                  <div className="absolute inset-0 bg-black/40 mix-blend-multiply pointer-events-none" />
+                  <p className="z-40 text-red-300 font-bold bg-black/60 px-4 py-2 rounded-lg backdrop-blur-sm border border-red-500/30 text-sm">
+                    Simli Concurrent Stream Limit Reached - Offline Mode
+                  </p>
+                </div>
+              )}
               
               {/* Speaker Overlay */}
               <div className="absolute bottom-6 left-6 flex items-center gap-3 bg-black/50 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10">
@@ -401,29 +465,145 @@ export default function VirtualInterviewRoom() {
           </div>
         </div>
 
-        {/* Live Subtitles Area */}
-        <div className="mt-8 text-center max-w-4xl mx-auto h-20">
+          {/* Subtitles & Status Overlay */}
+          <div className="absolute top-8 left-1/2 -translate-x-1/2 flex justify-center z-50 pointer-events-none">
             <AnimatePresence mode="wait">
               {isAiThinking && !activeSpeakerId && (
-                <motion.p initial={{ opacity: 0}} animate={{ opacity: 1}} exit={{ opacity: 0}} className="text-slate-400 font-semibold italic">
-                  Panel is thinking...
-                </motion.p>
-              )}
-              {activeSpeakerId && (
-                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} >
-                    <p className="text-blue-400 font-bold mb-1 text-sm">{selectedPersonas.find(p => p.id === activeSpeakerId)?.name} is speaking</p>
-                    <p className="text-xl font-medium text-white max-w-2xl mx-auto">{history[history.length -1]?.content}</p>
+                 <motion.div key="thinking" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="bg-amber-500/20 text-amber-500 backdrop-blur-md px-6 py-2 rounded-full border border-amber-500/30 font-bold flex items-center gap-3 shadow-lg">
+                   <div className="flex gap-1">
+                     <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                     <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                     <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                   </div>
+                   Processing Answer...
                  </motion.div>
               )}
-              {transcript && micActive && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} >
-                  <p className="text-emerald-400 font-bold mb-1 text-sm">You are speaking</p>
-                  <p className="text-lg font-medium text-slate-200">"{transcript}"</p>
-                </motion.div>
+              {!isAiThinking && micActive && !activeSpeakerId && (
+                 <motion.div key="listening" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="bg-emerald-500/20 text-emerald-400 backdrop-blur-md px-6 py-2 rounded-full border border-emerald-500/30 font-bold flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                   <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                   Listening to you...
+                 </motion.div>
               )}
             </AnimatePresence>
-        </div>
+          </div>
+
+          <div className="absolute bottom-32 left-0 right-0 px-8 z-40 flex flex-col items-center pointer-events-none">
+            <AnimatePresence mode="wait">
+               {activeSpeakerId && (
+                 <motion.div key="aispeaking" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="bg-black/80 backdrop-blur-xl border border-blue-500/30 rounded-2xl p-6 max-w-4xl w-full text-center shadow-[0_0_30px_rgba(59,130,246,0.15)]">
+                    <p className="text-blue-400 font-bold mb-2 uppercase tracking-widest text-xs flex items-center justify-center gap-2">
+                       <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                       {selectedPersonas.find(p => p.id === activeSpeakerId)?.name} is speaking
+                    </p>
+                    <p className="text-2xl font-medium text-white leading-relaxed">{history[history.length -1]?.content}</p>
+                 </motion.div>
+               )}
+               {transcript && micActive && !activeSpeakerId && !isAiThinking && (
+                 <motion.div key="userspeaking" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="bg-emerald-900/80 backdrop-blur-xl border border-emerald-500/30 rounded-2xl p-6 max-w-4xl w-full text-center shadow-2xl">
+                    <p className="text-emerald-400 font-bold mb-2 uppercase tracking-widest text-xs flex items-center justify-center gap-2">
+                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                       Live Transcript
+                    </p>
+                    <p className="text-xl font-medium text-slate-100 leading-relaxed">"{transcript}"</p>
+                 </motion.div>
+               )}
+            </AnimatePresence>
+          </div>
       </div>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-slate-900 border border-slate-700/50 rounded-3xl p-6 max-w-md w-full shadow-2xl relative"
+            >
+              <button 
+                onClick={() => setIsSettingsOpen(false)}
+                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-6">
+                <Settings className="w-6 h-6 text-blue-400" />
+                <h2 className="text-xl font-bold text-white">Interview Settings</h2>
+              </div>
+
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    <Mic className="w-4 h-4 text-emerald-400" /> Microphone
+                  </label>
+                  <select 
+                    value={selectedMic} 
+                    onChange={(e) => setSelectedMic(e.target.value)}
+                    className="w-full bg-slate-800 border-slate-700 text-white text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 p-3"
+                  >
+                    {devices.filter(d => d.kind === 'audioinput').map(device => (
+                      <option key={device.deviceId} value={device.deviceId}>
+                        {device.label || `Microphone ${device.deviceId.slice(0, 5)}...`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    <Video className="w-4 h-4 text-purple-400" /> Camera
+                  </label>
+                  <select 
+                    value={selectedCam} 
+                    onChange={(e) => setSelectedCam(e.target.value)}
+                    className="w-full bg-slate-800 border-slate-700 text-white text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 p-3"
+                  >
+                    {devices.filter(d => d.kind === 'videoinput').map(device => (
+                      <option key={device.deviceId} value={device.deviceId}>
+                        {device.label || `Camera ${device.deviceId.slice(0, 5)}...`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-slate-300">AI Speech Speed</label>
+                    <span className="text-xs font-bold bg-blue-500/20 text-blue-400 px-2 py-1 rounded-md">{aiSpeed}x</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0.7" 
+                    max="1.5" 
+                    step="0.1" 
+                    value={aiSpeed} 
+                    onChange={(e) => setAiSpeed(parseFloat(e.target.value))}
+                    className="w-full accent-blue-500 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-slate-500">
+                    <span>Slower</span>
+                    <span>Faster</span>
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setIsSettingsOpen(false)}
+                className="w-full mt-8 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all"
+              >
+                Apply & Close
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

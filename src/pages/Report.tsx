@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useParams, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { NeuCard, NeuBackground, NeuButton } from "@/components/LiquidGlass";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -20,8 +20,20 @@ const confidenceData = [
 
 export default function Report() {
   const { sessionId } = useParams();
-  const [isPlayingUser, setIsPlayingUser] = useState(false);
-  const [isPlayingAI, setIsPlayingAI] = useState(false);
+  const location = useLocation();
+  const [sessionData, setSessionData] = useState<{role: string, content: string}[]>([]);
+
+  useEffect(() => {
+    const data = location.state?.sessionData;
+    if (data && data.length > 0) {
+      setSessionData(data);
+    } else {
+      const stored = localStorage.getItem('lastInterviewSession');
+      if (stored) {
+        setSessionData(JSON.parse(stored));
+      }
+    }
+  }, [location]);
 
   const handleShare = async () => {
     const shareUrl = window.location.href;
@@ -167,99 +179,48 @@ export default function Report() {
 
         </div>
 
-        {/* Replay & Level Up Section */}
+        {/* Live Interview Transcript Section */}
         <NeuCard className="p-6 md:p-8 mb-8 bg-[#e0e5ec]">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-              <span className="p-2 neu-pressed rounded-xl"><NeuButton variant="primary" className="p-1 px-1 py-1 scale-75 mr-0 w-8 h-8 rounded-lg pointer-events-none shadow-sm"><Play fill="currentColor" size={12} /></NeuButton></span> Replay & Level Up
+              <span className="p-2 neu-pressed rounded-xl">
+                 <FileText size={20} className="text-blue-600" />
+              </span> 
+              Live Interview Transcript
             </h2>
-            <span className="text-sm font-bold text-slate-500">Question 3 of 8</span>
+            <span className="text-sm font-bold text-slate-500 bg-white/50 px-3 py-1 rounded-full border border-slate-200">
+              {sessionData.length} Messages Recorded
+            </span>
           </div>
 
-          <p className="text-lg font-bold text-slate-700 mb-8 border-l-4 border-blue-500 pl-4 py-1">
-            "Tell me about a time you had to manage a conflict with a stakeholder."
-          </p>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative">
-            
-            {/* Divider in desktop */}
-            <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-slate-300 -translate-x-1/2" />
-
-            {/* User Answer */}
-            <div className="space-y-4 pr-0 lg:pr-4">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Your Answer</span>
-                <span className="text-[10px] font-bold px-2 py-1 bg-red-100 text-red-600 border border-red-200 rounded-full">Weakness Detected</span>
-              </div>
-              
-              <div className="neu-pressed bg-[#e0e5ec] rounded-2xl p-5 border border-white/40">
-                <p className="text-sm text-slate-600 leading-relaxed mb-6">
-                  "Well, there was this one time... um, the marketing VP didn't like the roadmap. I just kind of told him that we did the research and he was wrong. Eventually he agreed because I showed him the data, but it was <span className="bg-red-100 text-red-700 font-semibold px-1.5 rounded">awkward</span> for a while."
-                </p>
-                
-                {/* Audio Player UI */}
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setIsPlayingUser(!isPlayingUser)} className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center hover:bg-slate-300 transition-colors shadow-inner border border-slate-300">
-                    {isPlayingUser ? <Pause size={14} className="text-slate-700" /> : <Play size={14} className="text-slate-700 ml-0.5" />}
-                  </button>
-                  <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden shadow-inner">
-                    <div className="h-full bg-slate-400 w-[30%]" />
-                  </div>
-                  <span className="text-xs text-slate-500 font-bold">00:14</span>
+          <div className="space-y-6 max-h-[500px] overflow-y-auto pr-4 custom-scrollbar rounded-xl p-2">
+            {sessionData.length > 0 ? sessionData.map((msg: any, idx: number) => (
+              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-2xl p-5 border shadow-sm ${
+                  msg.role === 'user' 
+                    ? 'bg-emerald-50 border-emerald-200 neu-pressed' 
+                    : 'bg-white border-blue-100'
+                }`}>
+                  <p className={`text-[10px] font-bold mb-2 uppercase tracking-widest flex items-center gap-1.5 ${
+                    msg.role === 'user' ? 'text-emerald-600' : 'text-blue-600'
+                  }`}>
+                    {msg.role === 'user' ? (
+                       <><Mic size={12} /> You</>
+                    ) : (
+                       <><Wand2 size={12} /> AI Panelist</>
+                    )}
+                  </p>
+                  <p className="text-[15px] font-medium text-slate-700 leading-relaxed whitespace-pre-wrap">
+                    {msg.content}
+                  </p>
                 </div>
               </div>
-
-              <div className="space-y-3 pt-2">
-                <div className="flex gap-3">
-                  <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                  <p className="text-sm text-slate-600 font-medium">Lacked specific details on conflict resolution steps.</p>
-                </div>
-                <div className="flex gap-3">
-                  <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
-                  <p className="text-sm text-slate-600 font-medium">Language was defensive ("he was wrong").</p>
-                </div>
+            )) : (
+              <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                 <FileText size={48} className="mb-4 opacity-20" />
+                 <p className="italic font-medium">No recorded interview transcript found for this session.</p>
               </div>
-            </div>
-
-            {/* AI Suggested Answer */}
-            <div className="space-y-4 pl-0 lg:pl-4">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs font-bold text-blue-600 uppercase tracking-widest flex items-center gap-1"><Wand2 size={12} /> AI Suggested Answer</span>
-                <button className="text-[10px] font-bold px-2 py-1 bg-white hover:bg-slate-50 text-blue-600 border border-slate-200 shadow-sm rounded-full flex items-center gap-1 transition-colors">
-                  <Mic size={10} /> Clone My Voice
-                </button>
-              </div>
-              
-              <div className="neu-pressed bg-[#e0e5ec] rounded-2xl p-5 border border-white/40 relative">
-                <div className="absolute inset-0 bg-blue-50/50 rounded-2xl pointer-events-none" />
-                <p className="text-sm text-slate-700 leading-relaxed mb-6 relative z-10">
-                  "In my previous role, the VP of Marketing had concerns about our Q3 roadmap. <span className="bg-emerald-100 text-emerald-800 px-1.5 rounded font-bold border border-emerald-200">Instead of dismissing his feedback</span>, I set up a 1:1 to understand his core KPIs. I realized his team needed a feature we pushed to Q4. We compromised by shipping an MVP version in Q3. This <span className="bg-blue-100 text-blue-800 px-1.5 rounded font-bold border border-blue-200">strengthened our relationship</span> and met business goals."
-                </p>
-                
-                {/* Audio Player UI */}
-                <div className="flex items-center gap-3 relative z-10">
-                  <button onClick={() => setIsPlayingAI(!isPlayingAI)} className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center hover:bg-blue-600 transition-colors shadow-md">
-                    {isPlayingAI ? <Pause size={14} className="text-white" /> : <Play size={14} className="text-white ml-0.5" />}
-                  </button>
-                  <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden shadow-inner">
-                    <div className="h-full bg-blue-500 w-[0%]" />
-                  </div>
-                  <span className="text-xs text-slate-500 font-bold">00:22</span>
-                </div>
-              </div>
-
-              <div className="space-y-3 pt-2">
-                <div className="flex gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                  <p className="text-sm text-slate-600 font-medium">Used the "Empathy Bridge" technique effectively.</p>
-                </div>
-                <div className="flex gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                  <p className="text-sm text-slate-600 font-medium">Clear STAR structure: Situation, Task, Action, Result.</p>
-                </div>
-              </div>
-            </div>
-
+            )}
           </div>
         </NeuCard>
 
