@@ -212,7 +212,7 @@ export default function LiveAudioInterview() {
               <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden relative">
                 <motion.div 
                   className={`absolute left-0 top-0 bottom-0 transition-colors duration-100 ${volume > 5 ? 'bg-green-500' : 'bg-red-500'}`} 
-                  animate={{ width: \`\${Math.min(100, (volume / 128) * 100)}%\` }}
+                  animate={{ width: `${Math.min(100, (volume / 128) * 100)}%` }}
                   transition={{ type: "tween", ease: "linear", duration: 0.1 }}
                 />
               </div>
@@ -270,11 +270,11 @@ export default function LiveAudioInterview() {
              <button
                onClick={toggleRecording}
                disabled={isEvaluating}
-               className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 \${
+               className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 ${
                  isRecording 
                    ? "bg-red-500 text-white shadow-[inset_4px_4px_8px_rgba(0,0,0,0.2),_inset_-4px_-4px_8px_rgba(255,255,255,0.2)] animate-pulse scale-105" 
                    : "neu-convex text-slate-600 hover:text-blue-600 active:scale-95"
-               } \${isEvaluating ? "opacity-50 cursor-not-allowed" : ""}`}
+               } ${isEvaluating ? "opacity-50 cursor-not-allowed" : ""}`}
              >
                {isRecording ? <Square className="w-8 h-8 fill-current" /> : <Mic className="w-10 h-10" />}
              </button>
