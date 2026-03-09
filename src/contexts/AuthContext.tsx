@@ -1,4 +1,3 @@
- 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -21,41 +20,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Mock Auth: immediately log the user in
-        const timer = setTimeout(() => {
-            const mockUser = { id: 'mock-user-id', email: 'test@example.com', user_metadata: { full_name: 'Mock Candidate' } } as unknown as User;
-            setUser(mockUser);
-            setSession({ access_token: 'fake-token', user: mockUser } as Session);
+        // Get initial session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+            setUser(session?.user ?? null);
             setLoading(false);
-        }, 300);
-        return () => clearTimeout(timer);
+        });
+
+        // Listen for auth changes (login, logout, token refresh)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            (_event, session) => {
+                setSession(session);
+                setUser(session?.user ?? null);
+                setLoading(false);
+            }
+        );
+
+        return () => subscription.unsubscribe();
     }, []);
 
     const signUp = async (email: string, password: string, fullName: string) => {
-        const mockUser = { id: 'mock-user-id', email, user_metadata: { full_name: fullName } } as unknown as User;
-        setUser(mockUser);
-        setSession({ access_token: 'fake-token', user: mockUser } as Session);
-        return { error: null };
+        const { error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: { full_name: fullName },
+            },
+        });
+        return { error };
     };
 
     const signIn = async (email: string, password: string) => {
-        const mockUser = { id: 'mock-user-id', email, user_metadata: { full_name: 'Mock Candidate' } } as unknown as User;
-        setUser(mockUser);
-        setSession({ access_token: 'fake-token', user: mockUser } as Session);
-        return { error: null };
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        return { error };
     };
 
     const signInWithOAuth = async (provider: 'google' | 'github') => {
-        const mockUser = { id: 'mock-user-id', email: `${provider}@example.com`, user_metadata: { full_name: 'Mock Candidate' } } as unknown as User;
-        setUser(mockUser);
-        setSession({ access_token: 'fake-token', user: mockUser } as Session);
-        return { error: null };
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider,
+            options: {
+                redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}dashboard`,
+            },
+        });
+        return { error };
     };
 
     const signOut = async () => {
-        setUser(null);
-        setSession(null);
-        window.location.href = '/';
+        await supabase.auth.signOut();
     };
 
     return (
