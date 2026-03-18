@@ -1,7 +1,6 @@
 
   # Interview Guru #
   **"Not just mock. Your forever Interview Guru who remembers everything."**
-  
   <p align="center">
     <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-18-blue?style=for-the-badge&logo=react&logoColor=white" alt="React" /></a>
     <a href="https://vitejs.dev/"><img src="https://img.shields.io/badge/Vite-5-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" /></a>
