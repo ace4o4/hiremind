@@ -1,5 +1,5 @@
 
-  # 🔮 InterviewF
+  # 🔮 Interv
   **"Not just mock. Your forever Interview Guru who remembers everything."**
   
   <p align="center">
