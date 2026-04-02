@@ -88,7 +88,7 @@ const Auth = () => {
                 <div className="h-4 w-4 border-l-2 border-b-2 border-white rounded-bl-sm -rotate-45 relative left-1" />
               </div>
             </div>
-            <span className="font-display text-2xl font-black tracking-tight">APEX<span className="text-blue-300">SOLUTIONS</span></span>
+            <span className="font-display text-2xl font-black tracking-tight">HIRE<span className="text-blue-300">MIND</span></span>
           </Link>
 
           <h1 className="text-5xl font-black mb-6 leading-tight">Your gateway to<br />perfect interviews.</h1>
@@ -126,7 +126,7 @@ const Auth = () => {
                 <div className="h-4 w-4 border-l-2 border-b-2 border-blue-600 rounded-bl-sm -rotate-45 relative left-1" />
               </div>
             </div>
-            <span className="font-display text-2xl font-black text-slate-800 tracking-tight">APEX<span className="text-blue-600">SOLUTIONS</span></span>
+            <span className="font-display text-2xl font-black text-slate-800 tracking-tight">HIRE<span className="text-blue-600">MIND</span></span>
           </Link>
 
           <NeuCard className="p-8 pb-10">
