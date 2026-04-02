@@ -31,6 +31,10 @@ export default function VirtualInterviewRoom() {
   const navigate = useNavigate();
   // Expecting selectedPersonas to be passed via router state
   const selectedPersonas: Persona[] = location.state?.selectedPersonas || [];
+  const roleContext = location.state?.role || "Software Engineer";
+  const companyContext = location.state?.company || "Tech Company";
+  
+  const [startTime] = useState<number>(Date.now());
 
   const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
   const [micActive, setMicActive] = useState(false);
@@ -161,15 +165,15 @@ export default function VirtualInterviewRoom() {
     recognition.lang = "en-US";
 
     recognition.onresult = (event: any) => {
-      let currentTranscript = "";
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        currentTranscript += event.results[i][0].transcript;
+      let fullTranscript = "";
+      for (let i = 0; i < event.results.length; ++i) {
+        fullTranscript += event.results[i][0].transcript;
       }
-      setTranscript(currentTranscript);
+      setTranscript(fullTranscript);
     };
 
     recognition.onend = () => {
-      // If mic is still supposed to be active (e.g., user paused), auto-restart
+      // If the session hasn't been deliberately paused by the AI thinking/talking, auto-restart
       if (micActive && !activeSpeakerId && !isAiThinking) {
         try {
           recognition.start();
@@ -182,19 +186,37 @@ export default function VirtualInterviewRoom() {
     return () => {
       recognition.stop();
     };
-  }, [micActive, activeSpeakerId, isAiThinking]);
+  }, []); // Only run once to initialize
 
-  // Toggle Mic
+  // Toggle Mic based on state changes
   useEffect(() => {
     if (!recognitionRef.current) return;
+    
+    // If AI is not thinking and no one is speaking, turn mic ON
     if (micActive && !activeSpeakerId && !isAiThinking) {
       try {
         recognitionRef.current.start();
-      } catch (e) { }
-    } else {
-      recognitionRef.current.stop();
+      } catch (e) { 
+        // Already started error is safe to ignore
+      }
+    } 
+    // If AI is thinking or speaking, turn mic OFF
+    else {
+      try { 
+        recognitionRef.current.stop(); 
+      } catch (e) {}
     }
   }, [micActive, activeSpeakerId, isAiThinking]);
+
+  // Auto-Submit on Silence
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (transcript.trim().length > 5 && micActive && !isAiThinking) {
+        submitUserResponse();
+      }
+    }, 3000); // Trigger submit after 3 seconds of silence
+    return () => clearTimeout(timeout);
+  }, [transcript, micActive, isAiThinking]);
 
   // The Core AI Conversation Loop
   const submitUserResponse = async () => {
@@ -263,13 +285,16 @@ export default function VirtualInterviewRoom() {
 
           window.speechSynthesis.speak(utterance);
         } else {
-          // Absolute fallback if speech API is unavailable
-          const estimatedDurationMs = (text.split(" ").length / 2.5) * 1000;
+          // Emulate the timing if limits hit
+          setActiveSpeakerId(avatar.id);
+          setIsAiThinking(false);
+          setMicActive(false);
+
           setTimeout(() => {
             setActiveSpeakerId(null);
             setIsAiThinking(false);
             setMicActive(true);
-          }, estimatedDurationMs);
+          }, text.length * 60); // Roughly 60ms per character
         }
       }
     } catch (e) {
@@ -339,8 +364,17 @@ export default function VirtualInterviewRoom() {
     }
 
     // Save history to localStorage and go to report
+    const durationSeconds = Math.round((Date.now() - startTime) / 1000);
     localStorage.setItem("lastInterviewSession", JSON.stringify(history));
-    navigate("/report", { state: { sessionData: history } });
+    
+    navigate("/report", { 
+      state: { 
+        sessionData: history,
+        role: roleContext,
+        company: companyContext,
+        durationSeconds: durationSeconds
+      } 
+    });
   };
 
   return (

@@ -1,6 +1,6 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Brain, Zap, Users, Shield, ArrowRight, Sparkles, Play, Menu, X, Target, Search, BarChart3, User, Star } from "lucide-react";
+import { Users, ArrowRight, Sparkles, Menu, X, Star } from "lucide-react";
 import { NeuCard, NeuButton, CursorGlow, NeuBackground } from "@/components/LiquidGlass";
 import { useRef, useState } from "react";
 
@@ -254,98 +254,7 @@ const HeroSection = () => {
 };
 
 
-/* ===== 4-COLUMN SERVICES GRID (Blue 3D Theme) ===== */
-const services = [
-  {
-    title: "Services",
-    desc: "Team Scrums",
-    icon: Users,
-    glow: "blue" as const,
-    img: "https://images.unsplash.com/photo-1634152962476-4b8a00e1915c?q=80&w=400&auto=format&fit=crop" // 3D blocks placeholder
-  },
-  {
-    title: "Profiles Studies",
-    desc: "User Personas",
-    icon: User,
-    glow: "blue" as const,
-    img: "https://images.unsplash.com/photo-1618005192384-a83a8bd57fbe?q=80&w=400&auto=format&fit=crop" // 3D cylinders placeholder
-  },
-  {
-    title: "Purfoct",
-    desc: "Team Server",
-    icon: Target,
-    glow: "blue" as const,
-    img: "https://images.unsplash.com/photo-1633394866579-dd27ffb2a0fb?q=80&w=400&auto=format&fit=crop" // 3D grid placeholder
-  },
-  {
-    title: "Puffort",
-    desc: "Top Secret",
-    icon: Shield,
-    glow: "blue" as const,
-    img: "https://images.unsplash.com/photo-1633394866528-984e7236d933?q=80&w=400&auto=format&fit=crop" // 3D spheres placeholder
-  }
-];
 
-const ServicesGridSection = () => (
-  <section className="relative z-20 py-24">
-    <div className="container mx-auto px-6 lg:px-12 max-w-7xl">
-      <div className="flex items-center justify-between mb-16 text-xs font-bold text-slate-400 tracking-widest uppercase">
-         <span className="hidden md:inline-block">/</span>
-         <span className="hidden md:inline-block">/</span>
-         <span className="hidden md:inline-block">/</span>
-         <span className="flex items-center gap-2"><div className="h-1.5 w-1.5 rounded-full bg-white/50"/> PROJECTS</span>
-         <span>SERVICES <div className="inline-block h-4 w-4 rounded-full border border-white/30 text-center leading-none ml-1 relative top-0.5">3</div></span>
-         <span className="hidden md:inline-block">/</span>
-         <span className="hidden md:flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-blue-500"/></span>
-         <span className="hidden md:inline-block text-right">/ /</span>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {services.map((svc, i) => (
-          <motion.div
-            key={svc.title}
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: i * 0.15, duration: 0.8, type: "spring" }}
-          >
-            <NeuCard className="h-[320px] p-6 flex flex-col justify-between group rounded-[2rem] hover:scale-[1.02] transition-transform">
-              
-              {/* Header */}
-              <div className="flex justify-between items-start">
-                 <div className="flex items-center gap-2 text-slate-500 font-bold">
-                   <svc.icon className="h-4 w-4" />
-                   <span className="text-xs">{svc.title}</span>
-                 </div>
-                 <div className="h-6 w-6 rounded-full neu-pressed flex items-center justify-center text-slate-400 group-hover:text-blue-600 transition-colors">
-                   <div className="h-1 w-2 border-b border-l border-current -rotate-45 relative bottom-0.5" />
-                 </div>
-              </div>
-              
-              {/* 3D Graphic (Proxy image) */}
-              <div className="relative w-full flex-1 flex items-center justify-center my-4 overflow-hidden mask-image-bottom">
-                 <img src={svc.img} alt={svc.title} className="max-h-[140px] object-contain drop-shadow-2xl mix-blend-luminosity opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-700" loading="lazy" />
-                 {/* Floor reflection effect */}
-                 <div className="absolute -bottom-4 w-[120%] h-8 bg-blue-500/20 blur-xl rounded-[100%] scale-y-50"></div>
-              </div>
-
-              {/* Footer text */}
-              <div>
-                 <h3 className="font-display text-xl font-bold text-slate-800 mb-2">{svc.title}</h3>
-                 <div className="flex justify-between items-center">
-                    <span className="px-3 py-1 rounded-full text-[10px] font-bold text-slate-500 tracking-wide uppercase neu-pressed">{svc.desc}</span>
-                    <div className="h-8 w-8 rounded-full neu-convex flex items-center justify-center text-slate-500 group-hover:text-blue-600 transition-colors cursor-pointer">
-                      <ArrowRight className="h-3 w-3 -rotate-45" />
-                    </div>
-                 </div>
-              </div>
-            </NeuCard>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  </section>
-);
 
 /* ===== TIMELINE SECTION (Blue 3D Theme) ===== */
 const timelineSteps = [
@@ -554,6 +463,35 @@ const AvatarsAndContactSection = () => (
   </section>
 );
 
+/* ===== GET STARTED CTA ===== */
+const GetStartedCTA = () => (
+  <section className="relative z-20 py-24 lg:py-32">
+    <div className="container mx-auto px-6 max-w-3xl text-center">
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8, type: "spring" }}
+        className="flex flex-col items-center gap-8"
+      >
+        <h2 className="font-display text-3xl md:text-5xl font-bold text-slate-800 leading-tight">
+          Ready to Ace Your
+          <br />
+          Next Interview?
+        </h2>
+        <p className="text-slate-500 font-medium text-sm md:text-base max-w-lg">
+          Start practicing with AI-powered mock interviews and get actionable feedback to land your dream role.
+        </p>
+        <NeuButton variant="primary" className="px-10 py-5 shadow-[0_15px_40px_-5px_rgba(75,123,229,0.3)] text-base">
+          <Link to="/dashboard" className="flex items-center gap-2">
+            Get Started <ArrowRight className="h-4 w-4" />
+          </Link>
+        </NeuButton>
+      </motion.div>
+    </div>
+  </section>
+);
+
 /* ===== FOOTER ===== */
 const Footer = () => (
   <footer className="border-t border-slate-200 py-12 relative z-20">
@@ -582,8 +520,8 @@ const Index = () => (
     <Navbar />
     <HeroSection />
     <TimelineSection />
-    <ServicesGridSection />
     <AvatarsAndContactSection />
+    <GetStartedCTA />
     <Footer />
   </div>
 );

@@ -186,8 +186,8 @@ export default function LiveAudioInterview() {
           setVolume(avgVolume);
 
           // Auto-Silence Detection
-          const SILENCE_THRESHOLD = 8; // Adjust threshold based on environment
-          const SILENCE_DURATION = 1500; // 1.5 seconds of silence to auto-stop
+          const SILENCE_THRESHOLD = 2; // Lowered so it picks up normal/quiet speech
+          const SILENCE_DURATION = 3000; // Increased to 3 seconds so users don't get cut off mid-thought
 
           if (avgVolume > SILENCE_THRESHOLD) {
             hasSpokenRef.current = true;

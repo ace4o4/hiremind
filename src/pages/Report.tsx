@@ -1,16 +1,17 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { NeuCard, NeuBackground, NeuButton } from "@/components/LiquidGlass";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Share2, Download, Trophy, AlertTriangle,
-  Play, Pause, Wand2, FileText, Mic, Eye, CheckCircle2, Loader2
+  Play, Pause, Wand2, FileText, Mic, Eye, CheckCircle2, Loader2, Sparkles, Target, ArrowUpCircle
 } from "lucide-react";
 import html2pdf from "html2pdf.js";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useEffect } from "react";
+import { API_URL } from "@/lib/api";
 
 // Dummy data for the Confidence Area Chart
 const confidenceData = [
@@ -22,15 +23,20 @@ const confidenceData = [
 
 export default function Report() {
   const { sessionId } = useParams();
+  const location = useLocation();
+  const passedSessionData = location.state?.sessionData; // Transcript history from VirtualInterviewRoom
   const [isPlayingUser, setIsPlayingUser] = useState(false);
   const [isPlayingAI, setIsPlayingAI] = useState(false);
   const [sessionData, setSessionData] = useState<any>(null);
   const [qaLogs, setQaLogs] = useState<any[]>([]);
+  const [generatedReport, setGeneratedReport] = useState<any>(null);
+  const [reportLoading, setReportLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 1. If we have a sessionId (from the AudioInterview flow), use Supabase logs
     const fetchReportData = async () => {
-      if (!sessionId) return;
+      if (!sessionId || sessionId === 'last') return;
       setLoading(true);
       try {
         const { data: session, error: sErr } = await supabase
@@ -51,15 +57,60 @@ export default function Report() {
         if (lErr) throw lErr;
         setQaLogs(logs);
       } catch (err) {
-        console.error("Error fetching report:", err);
-        toast.error("Failed to load report data.");
+        console.error("Error fetching report from DB:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchReportData();
-  }, [sessionId]);
+    // 2. If we just came from VirtualInterviewRoom, we need to generate a comprehensive report
+    const generateNewReport = async () => {
+      setLoading(true);
+      setReportLoading(true);
+      
+      try {
+        const historyData = passedSessionData || JSON.parse(localStorage.getItem('lastInterviewSession') || '[]');
+        if (!historyData || historyData.length < 2) {
+          throw new Error("No conversation history found.");
+        }
+
+        const res = await fetch(`${API_URL}api/agents/generate-report`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            history: historyData,
+            role: location.state?.role || 'Software Engineer',
+            company: location.state?.company || 'Tech Company',
+            durationSeconds: location.state?.durationSeconds || 300 
+          })
+        });
+
+        if (!res.ok) throw new Error("Failed to generate comprehensive report");
+        const reportRaw = await res.json();
+        
+        setGeneratedReport(reportRaw);
+        setSessionData({
+          created_at: new Date().toISOString(),
+          role_focus: "Live Panel",
+          company_focus: "Interview",
+          score: reportRaw.overall_score
+        });
+
+      } catch (err) {
+        console.error("Error generating report:", err);
+        toast.error("Failed to generate comprehensive report.");
+      } finally {
+        setReportLoading(false);
+        setLoading(false);
+      }
+    };
+
+    if (sessionId && sessionId !== 'last') {
+      fetchReportData();
+    } else {
+      generateNewReport();
+    }
+  }, [sessionId, passedSessionData]);
 
   const handleShare = async () => {
     const shareUrl = window.location.href;
@@ -98,26 +149,31 @@ export default function Report() {
     });
   };
 
-  if (loading) {
+  if (loading || reportLoading) {
     return (
-      <div className="min-h-screen bg-[#e0e5ec] flex items-center justify-center">
+      <div className="min-h-screen bg-[#e0e5ec] flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+        {reportLoading && <p className="text-slate-500 font-bold text-sm tracking-widest uppercase animate-pulse">Analyzing Interview Session...</p>}
       </div>
     );
   }
 
-  if (!sessionData) {
+  if (!sessionData && !generatedReport) {
     return (
-      <div className="min-h-screen bg-[#e0e5ec] flex items-center justify-center flex-col gap-4">
+      <div className="min-h-screen bg-[#e0e5ec] flex flex-col items-center justify-center gap-4">
         <AlertTriangle className="w-12 h-12 text-red-500" />
-        <p className="text-slate-700 font-bold">Report not found.</p>
+        <p className="text-slate-700 font-bold">Report data could not be found or generated.</p>
         <Link to="/dashboard" className="text-blue-600 font-bold underline">Back to Dashboard</Link>
       </div>
     );
   }
 
-  const overallScore = sessionData.score || 0;
+  const overallScore = generatedReport?.overall_score || sessionData?.score || 0;
   const latestLog = qaLogs[qaLogs.length - 1] || {};
+  
+  const scoreContent = generatedReport?.scores?.content_quality || latestLog.score_content || overallScore;
+  const scoreDelivery = generatedReport?.scores?.communication || latestLog.score_delivery || overallScore;
+  const scoreStructure = generatedReport?.scores?.structure || overallScore;
 
   return (
     <div className="min-h-screen bg-[#e0e5ec] text-slate-800 p-4 md:p-8 lg:p-12 relative overflow-hidden font-sans selection:bg-blue-500/30">
@@ -170,15 +226,15 @@ export default function Report() {
             <div className="grid grid-cols-3 w-full gap-2">
               <div className="neu-flat p-3 rounded-xl flex flex-col items-center">
                 <span className="text-[10px] uppercase font-bold text-slate-500 mb-1">Content</span>
-                <span className="text-lg font-black text-slate-800">{latestLog.score_content || 0}/100</span>
+                <span className="text-lg font-black text-slate-800">{scoreContent}/100</span>
               </div>
               <div className="neu-flat p-3 rounded-xl flex flex-col items-center">
                 <span className="text-[10px] uppercase font-bold text-slate-500 mb-1">Delivery</span>
-                <span className="text-lg font-black text-slate-800">{latestLog.score_delivery || 0}/100</span>
+                <span className="text-lg font-black text-slate-800">{scoreDelivery}/100</span>
               </div>
               <div className="neu-flat p-3 rounded-xl flex flex-col items-center">
-                <span className="text-[10px] uppercase font-bold text-slate-500 mb-1">Confidence</span>
-                <span className="text-lg font-black text-slate-800">{overallScore}/100</span>
+                <span className="text-[10px] uppercase font-bold text-slate-500 mb-1">Structure</span>
+                <span className="text-lg font-black text-slate-800">{scoreStructure}/100</span>
               </div>
             </div>
 
@@ -226,53 +282,153 @@ export default function Report() {
 
         </div>
 
-        {/* Replay & Level Up Section */}
-        <NeuCard className="p-6 md:p-8 mb-8 bg-[#e0e5ec]">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-              <span className="p-2 neu-pressed rounded-xl"><NeuButton variant="primary" className="p-1 px-1 py-1 scale-75 mr-0 w-8 h-8 rounded-lg pointer-events-none shadow-sm"><Play fill="currentColor" size={12} /></NeuButton></span> Replay & Level Up
-            </h2>
-            <span className="text-sm font-bold text-slate-500">Highlighting Recent Responses</span>
+        {/* Dynamic Comprehensive Report Section (If Applicable) */}
+        {generatedReport && (
+          <div className="mb-8 space-y-6">
+            {/* Overall Feedback */}
+            <NeuCard className="p-6 md:p-8 bg-[#e0e5ec]">
+              <div className="flex items-center gap-3 mb-4">
+                <Sparkles className="w-6 h-6 text-blue-600" />
+                <h2 className="text-2xl font-black text-slate-800">Overall Feedback</h2>
+              </div>
+              <div className="neu-pressed bg-[#e0e5ec] rounded-2xl p-6 border border-white/40">
+                <p className="text-slate-700 leading-relaxed font-medium">{generatedReport.overall_feedback}</p>
+              </div>
+            </NeuCard>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Strengths */}
+              <NeuCard className="p-6 bg-[#e0e5ec]">
+                 <div className="flex items-center gap-2 mb-4">
+                   <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                   <h3 className="font-bold text-slate-800">Strengths Detected</h3>
+                 </div>
+                 <ul className="space-y-3">
+                   {generatedReport.strengths?.map((strength: string, i: number) => (
+                     <li key={i} className="flex gap-2 items-start text-sm text-slate-600 font-medium">
+                       <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                       <span className="pt-0.5">{strength}</span>
+                     </li>
+                   ))}
+                 </ul>
+              </NeuCard>
+
+              {/* Weaknesses */}
+              <NeuCard className="p-6 bg-[#e0e5ec]">
+                 <div className="flex items-center gap-2 mb-4">
+                   <div className="w-2 h-2 rounded-full bg-red-400" />
+                   <h3 className="font-bold text-slate-800">Areas for Improvement</h3>
+                 </div>
+                 <ul className="space-y-3">
+                   {generatedReport.weaknesses?.map((weakness: string, i: number) => (
+                     <li key={i} className="flex gap-2 items-start text-sm text-slate-600 font-medium">
+                       <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+                       <span className="pt-0.5">{weakness}</span>
+                     </li>
+                   ))}
+                 </ul>
+              </NeuCard>
+            </div>
+
+            {/* Improvement Roadmap */}
+            {generatedReport.improvement_roadmap && generatedReport.improvement_roadmap.length > 0 && (
+              <NeuCard className="p-6 md:p-8 bg-[#e0e5ec]">
+                 <div className="flex items-center gap-3 mb-6">
+                   <Target className="w-6 h-6 text-blue-600" />
+                   <h2 className="text-xl font-black text-slate-800">Actionable Roadmap</h2>
+                 </div>
+                 <div className="space-y-4">
+                   {generatedReport.improvement_roadmap.map((action: string, i: number) => (
+                     <div key={i} className="flex gap-4 items-center bg-white/40 p-4 rounded-xl shadow-sm border border-white/60">
+                       <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-600 shrink-0">
+                         {i + 1}
+                       </div>
+                       <p className="text-sm font-semibold text-slate-700">{action}</p>
+                     </div>
+                   ))}
+                 </div>
+              </NeuCard>
+            )}
+
+            {/* Highlighted Answers */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+               {generatedReport.standout_answers?.length > 0 && (
+                 <NeuCard className="p-6 bg-[#e0e5ec] border-[2px] border-emerald-400/20">
+                   <h4 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                     <ArrowUpCircle className="w-4 h-4" /> Standout Moments
+                   </h4>
+                   <div className="space-y-3">
+                     {generatedReport.standout_answers.map((ans: string, i: number) => (
+                        <p key={i} className="text-sm italic text-slate-600">"{ans}"</p>
+                     ))}
+                   </div>
+                 </NeuCard>
+               )}
+               {generatedReport.weak_answers?.length > 0 && (
+                 <NeuCard className="p-6 bg-[#e0e5ec] border-[2px] border-red-400/20">
+                   <h4 className="text-xs font-black text-red-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                     <AlertTriangle className="w-4 h-4" /> Weak Answers Recognized
+                   </h4>
+                   <div className="space-y-3">
+                     {generatedReport.weak_answers.map((ans: string, i: number) => (
+                        <p key={i} className="text-sm italic text-slate-600">"{ans}"</p>
+                     ))}
+                   </div>
+                 </NeuCard>
+               )}
+            </div>
           </div>
+        )}
 
-          <div className="space-y-12">
-            {qaLogs.map((log, index) => (
-              <div key={log.id} className="space-y-6">
-                <p className="text-lg font-bold text-slate-700 mb-4 border-l-4 border-blue-500 pl-4 py-1">
-                  "{log.question_text}"
-                </p>
+        {/* Supabase QA Replay Log (Legacy / Audio Interview mode) */}
+        {!generatedReport && qaLogs.length > 0 && (
+          <NeuCard className="p-6 md:p-8 mb-8 bg-[#e0e5ec]">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                <span className="p-2 neu-pressed rounded-xl"><NeuButton variant="primary" className="p-1 px-1 py-1 scale-75 mr-0 w-8 h-8 rounded-lg pointer-events-none shadow-sm"><Play fill="currentColor" size={12} /></NeuButton></span> Replay & Level Up
+              </h2>
+              <span className="text-sm font-bold text-slate-500">Highlighting Recent Responses</span>
+            </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative">
-                  <div className="space-y-4 pr-0 lg:pr-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Your Answer</span>
-                      {log.is_weakness && <span className="text-[10px] font-bold px-2 py-1 bg-red-100 text-red-600 border border-red-200 rounded-full">Weakness Detected</span>}
+            <div className="space-y-12">
+              {qaLogs.map((log, index) => (
+                <div key={log.id} className="space-y-6">
+                  <p className="text-lg font-bold text-slate-700 mb-4 border-l-4 border-blue-500 pl-4 py-1">
+                    "{log.question_text}"
+                  </p>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative">
+                    <div className="space-y-4 pr-0 lg:pr-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Your Answer</span>
+                        {log.is_weakness && <span className="text-[10px] font-bold px-2 py-1 bg-red-100 text-red-600 border border-red-200 rounded-full">Weakness Detected</span>}
+                      </div>
+
+                      <div className="neu-pressed bg-[#e0e5ec] rounded-2xl p-5 border border-white/40">
+                        <p className="text-sm text-slate-600 leading-relaxed mb-6 italic">
+                          "{log.user_answer_text}"
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="neu-pressed bg-[#e0e5ec] rounded-2xl p-5 border border-white/40">
-                      <p className="text-sm text-slate-600 leading-relaxed mb-6 italic">
-                        "{log.user_answer_text}"
-                      </p>
-                    </div>
-                  </div>
+                    <div className="space-y-4 pl-0 lg:pl-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-bold text-blue-600 uppercase tracking-widest flex items-center gap-1"><Wand2 size={12} /> AI Feedback</span>
+                      </div>
 
-                  <div className="space-y-4 pl-0 lg:pl-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-bold text-blue-600 uppercase tracking-widest flex items-center gap-1"><Wand2 size={12} /> AI Feedback</span>
-                    </div>
-
-                    <div className="neu-pressed bg-[#e0e5ec] rounded-2xl p-5 border border-white/40 relative">
-                      <div className="absolute inset-0 bg-blue-50/50 rounded-2xl pointer-events-none" />
-                      <p className="text-sm text-slate-700 leading-relaxed relative z-10">
-                        {log.ai_feedback_text}
-                      </p>
+                      <div className="neu-pressed bg-[#e0e5ec] rounded-2xl p-5 border border-white/40 relative">
+                        <div className="absolute inset-0 bg-blue-50/50 rounded-2xl pointer-events-none" />
+                        <p className="text-sm text-slate-700 leading-relaxed relative z-10">
+                          {log.ai_feedback_text}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </NeuCard>
+              ))}
+            </div>
+          </NeuCard>
+        )}
 
         {/* Metric Breakdowns */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
