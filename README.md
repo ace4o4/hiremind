@@ -13,7 +13,6 @@
     <i>Premium Agentic AI Mock Interview Platform featuring stunning 3D Liquid Glass Neumorphism.</i>
   </p>
 </div>
-
 ---
 
 ## ✨ Features That Set Us Apart
