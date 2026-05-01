@@ -1,6 +1,6 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Users, ArrowRight, Sparkles, Menu, X, Star } from "lucide-react";
+import { Users, User, Target, Shield, ArrowRight, Sparkles, Menu, X, Star } from "lucide-react";
 import { NeuCard, NeuButton, CursorGlow, NeuBackground } from "@/components/LiquidGlass";
 import { useRef, useState } from "react";
 
