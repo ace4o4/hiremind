@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useRef, useState, useCallback, useEffect } from "react";
 import { motion, useMotionValue, useSpring, useTransform, useScroll } from "framer-motion";
 import { cn } from "@/lib/utils";

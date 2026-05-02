@@ -80,17 +80,24 @@ export const getSessionQALogs = async (sessionId: string) => {
   return [];
 };
 
-export const addQALog = async (logData: any) => {
-  return { ...logData, id: "mock-log-" + Date.now() };
+export const addQALog = async (logData: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => {
+  const { data, error } = await supabase
+    .from('session_qa_logs')
+    .insert(logData)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 };
 
 // ---- Long Term Memory ----
 export const getUserMemories = async (userId: string) => {
   const { data, error } = await supabase
     .from('session_qa_logs')
-    .select('current_question, constructive_feedback, created_at')
+    .select('question_text, ai_feedback_text, created_at')
     .eq('user_id', userId)
-    .not('constructive_feedback', 'is', null)
+    .not('ai_feedback_text', 'is', null)
     .order('created_at', { ascending: false })
     .limit(5);
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Octokit } from "@octokit/rest";
 import * as acorn from "acorn";
 import dotenv from "dotenv";

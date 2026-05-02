@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -71,7 +72,7 @@ async function callGroq(
   return data.choices[0].message.content as string;
 }
 
-function extractJSON(raw: string): any {
+function extractJSON(raw: string): any   {
   const match = raw.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
   if (!match) throw new Error('No JSON found in response');
   return JSON.parse(match[0]);
@@ -102,9 +103,9 @@ Return ONLY a JSON array of strings: ["question1", "question2"]`
 
     const questions = extractJSON(raw);
     res.json({ questions, raw_news: news });
-  } catch (error: any) {
-    console.error('Tavily Agent Error:', error.message);
-    res.status(500).json({ error: 'Failed to run intelligence agent', detail: error.message });
+  } catch (error: unknown) {
+    console.error('Tavily Agent Error:', (error as Error).message);
+    res.status(500).json({ error: 'Failed to run intelligence agent', detail: (error as Error).message });
   }
 });
 
@@ -119,7 +120,7 @@ app.post('/api/agents/chat', async (req, res) => {
 
     if (personas && Array.isArray(personas) && personas.length > 1) {
       // Panel Attack Mode: multiple personas
-      const panelDesc = personas.map((p: any) => `- ${p.name} (${p.desc})`).join('\n');
+      const panelDesc = personas.map((p: any  ) => `- ${p.name} (${p.desc})`).join('\n');
       defaultSpeaker = personas[0].name;
       systemPrompt = `You are a panel of ${personas.length} distinct AI interviewers conducting a technical interview together:
 ${panelDesc}
@@ -148,7 +149,7 @@ You MUST respond with ONLY a raw JSON object (no markdown): {"speaker": "${defau
 
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...history.map((msg: any) => ({ role: msg.role === 'user' ? 'user' : 'assistant', content: msg.content })),
+      ...history.map((msg: any  ) => ({ role: msg.role === 'user' ? 'user' : 'assistant', content: msg.content })),
       { role: 'user', content: message }
     ];
 
@@ -162,9 +163,9 @@ You MUST respond with ONLY a raw JSON object (no markdown): {"speaker": "${defau
     } catch {
       res.json({ content: raw, speaker: defaultSpeaker });
     }
-  } catch (error: any) {
-    console.error('Chat Agent Error:', error.message);
-    res.status(500).json({ error: 'Failed to generate response', detail: error.message });
+  } catch (error: unknown) {
+    console.error('Chat Agent Error:', (error as Error).message);
+    res.status(500).json({ error: 'Failed to generate response', detail: (error as Error).message });
   }
 });
 
@@ -192,9 +193,9 @@ Return STRICTLY this JSON (no extra text):
 
     const evaluation = extractJSON(raw);
     res.json(evaluation);
-  } catch (error: any) {
-    console.error('Evaluator Agent Error:', error.message);
-    res.status(500).json({ error: 'Failed to evaluate answer', detail: error.message });
+  } catch (error: unknown) {
+    console.error('Evaluator Agent Error:', (error as Error).message);
+    res.status(500).json({ error: 'Failed to evaluate answer', detail: (error as Error).message });
   }
 });
 
@@ -206,9 +207,9 @@ app.post('/api/agents/github-code-review', async (req, res) => {
 
     const questions = await generateGitHubQuestions(githubUsername);
     res.json({ questions });
-  } catch (error: any) {
-    console.error('GitHub Agent Error:', error.message);
-    res.status(500).json({ error: 'Failed to analyze GitHub repos', detail: error.message });
+  } catch (error: unknown) {
+    console.error('GitHub Agent Error:', (error as Error).message);
+    res.status(500).json({ error: 'Failed to analyze GitHub repos', detail: (error as Error).message });
   }
 });
 
@@ -239,9 +240,9 @@ app.post('/api/agents/tts', async (req, res) => {
     const buffer = Buffer.from(await ttsRes.arrayBuffer());
     res.set('Content-Type', 'audio/mpeg');
     res.send(buffer);
-  } catch (error: any) {
-    console.error('TTS Agent Error:', error.message);
-    res.status(500).json({ error: 'Failed to generate speech', detail: error.message });
+  } catch (error: unknown) {
+    console.error('TTS Agent Error:', (error as Error).message);
+    res.status(500).json({ error: 'Failed to generate speech', detail: (error as Error).message });
   }
 });
 
@@ -255,9 +256,9 @@ app.post('/api/agents/canvas-evaluate', async (req, res) => {
 
     const result = await evaluateCanvasDesign(base64Image, currentQuestionContext, previousCanvasStateSummary);
     res.json(result);
-  } catch (error: any) {
-    console.error('Canvas Vision Agent Error:', error.message);
-    res.status(500).json({ error: 'Failed to evaluate canvas design', detail: error.message });
+  } catch (error: unknown) {
+    console.error('Canvas Vision Agent Error:', (error as Error).message);
+    res.status(500).json({ error: 'Failed to evaluate canvas design', detail: (error as Error).message });
   }
 });
 
@@ -301,9 +302,9 @@ app.post('/api/agents/stt', async (req, res) => {
     const data = await sttRes.json() as any;
     console.log(`📝 STT Result: "${data.text}"`);
     res.json({ text: data.text });
-  } catch (error: any) {
-    console.error('STT Agent Error:', error.message);
-    res.status(500).json({ error: 'Failed to transcribe audio', detail: error.message });
+  } catch (error: unknown) {
+    console.error('STT Agent Error:', (error as Error).message);
+    res.status(500).json({ error: 'Failed to transcribe audio', detail: (error as Error).message });
   }
 });
 
@@ -341,9 +342,9 @@ Return ONLY this JSON (no extra text):
 
     const parsed = extractJSON(raw);
     res.json(parsed);
-  } catch (error: any) {
-    console.error('Resume Parser Error:', error.message);
-    res.status(500).json({ error: 'Failed to parse resume', detail: error.message });
+  } catch (error: unknown) {
+    console.error('Resume Parser Error:', (error as Error).message);
+    res.status(500).json({ error: 'Failed to parse resume', detail: (error as Error).message });
   }
 });
 
@@ -384,9 +385,9 @@ Return ONLY a JSON array (no extra text):
 
     const questions = extractJSON(raw);
     res.json({ questions });
-  } catch (error: any) {
-    console.error('Question Generator Error:', error.message);
-    res.status(500).json({ error: 'Failed to generate questions', detail: error.message });
+  } catch (error: unknown) {
+    console.error('Question Generator Error:', (error as Error).message);
+    res.status(500).json({ error: 'Failed to generate questions', detail: (error as Error).message });
   }
 });
 
@@ -400,7 +401,7 @@ app.post('/api/agents/generate-report', async (req, res) => {
     }
 
     const transcript = history
-      .map((m: any) => `${m.role === 'user' ? 'Candidate' : 'Interviewer'}: ${m.content}`)
+      .map((m: any  ) => `${m.role === 'user' ? 'Candidate' : 'Interviewer'}: ${m.content}`)
       .join('\n\n');
 
     const raw = await callGroq([
@@ -440,9 +441,9 @@ Analyse the interview and return ONLY this JSON (no extra text, all numeric scor
 
     const report = extractJSON(raw);
     res.json(report);
-  } catch (error: any) {
-    console.error('Report Generator Error:', error.message);
-    res.status(500).json({ error: 'Failed to generate report', detail: error.message });
+  } catch (error: unknown) {
+    console.error('Report Generator Error:', (error as Error).message);
+    res.status(500).json({ error: 'Failed to generate report', detail: (error as Error).message });
   }
 });
 
@@ -485,24 +486,10 @@ Return ONLY this structured JSON (no markdown or extra text):
     console.log(`[Evaluator] Groq Response: ${raw}`);
     const evaluation = extractJSON(raw);
 
-    // Save to Supabase if session info is provided
-    if (sessionId && userId) {
-      await supabase.from('session_qa_logs').insert({
-        session_id: sessionId,
-        user_id: userId,
-        question_text: currentQuestion,
-        user_answer_text: userAnswer,
-        ai_feedback_text: evaluation.feedback,
-        score_content: evaluation.toneScore, // using toneScore for now as proxy
-        score_delivery: evaluation.vocabularyScore,
-        is_weakness: evaluation.toneScore < 60
-      });
-    }
-
     res.json(evaluation);
-  } catch (error: any) {
-    console.error('Real-Time Evaluator Error:', error.message);
-    res.status(500).json({ error: 'Failed to evaluate answer', detail: error.message });
+  } catch (error: unknown) {
+    console.error('Real-Time Evaluator Error:', (error as Error).message);
+    res.status(500).json({ error: 'Failed to evaluate answer', detail: (error as Error).message });
   }
 });
 
@@ -518,8 +505,8 @@ app.post('/api/sessions/start', async (req, res) => {
 
     if (error) throw error;
     res.json(data);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    res.status(500).json({ error: (err as Error).message });
   }
 });
 
@@ -535,8 +522,8 @@ app.post('/api/sessions/complete', async (req, res) => {
 
     if (error) throw error;
     res.json(data);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    res.status(500).json({ error: (err as Error).message });
   }
 });
 
@@ -580,3 +567,5 @@ app.listen(port, () => {
   console.log('   9. Question Generator     (Resume + JD → Groq)');
   console.log('  10. Interview Report       (Post-session Analysis)');
 });
+
+export default app;

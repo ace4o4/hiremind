@@ -43,7 +43,7 @@ const Auth = () => {
       if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) {
-          toast.error(error.message);
+          toast.error((error as Error).message);
         } else {
           toast.success("Welcome back! 🎉");
           navigate("/dashboard", { replace: true });
@@ -51,7 +51,7 @@ const Auth = () => {
       } else {
         const { error } = await signUp(email, password, fullName);
         if (error) {
-          toast.error(error.message);
+          toast.error((error as Error).message);
         } else {
           toast.success("Account created! Check your email to confirm, or sign in now.");
         }
@@ -66,7 +66,7 @@ const Auth = () => {
   const handleOAuth = async (provider: "google" | "github") => {
     const { error } = await signInWithOAuth(provider);
     if (error) {
-      toast.error(error.message);
+      toast.error((error as Error).message);
     }
   };
 

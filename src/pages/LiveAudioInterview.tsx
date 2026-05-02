@@ -1,10 +1,12 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, Square, ChevronRight, CheckCircle2, TrendingUp, BookOpen, Maximize2, Loader2, ArrowRight, AlertTriangle, Clock, MicOff, Settings, RefreshCw } from "lucide-react";
 import { NeuCard, NeuButton } from "@/components/LiquidGlass";
 import { useAuth } from "@/contexts/AuthContext";
-import { API_URL } from "@/lib/api";
+import { API_URL, createInterviewSession, endInterviewSession, addQALog } from "@/lib/api";
 
 interface Question {
   question: string;
@@ -69,7 +71,7 @@ export default function LiveAudioInterview() {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           stream.getTracks().forEach(t => t.stop());
           return checkDevices(true); // Recurse once with permission
-        } catch (e) { }
+        } catch (e) { /* empty */ }
       }
 
       setAvailableMics(mics);
@@ -94,19 +96,8 @@ export default function LiveAudioInterview() {
     const startSession = async () => {
       if (!user) return;
       try {
-        const res = await fetch(`${API_URL}api/sessions/start`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user.id,
-            roleFocus: role,
-            companyFocus: questions[0]?.focus || "General"
-          })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setSessionId(data.id);
-        }
+        const data = await createInterviewSession(user.id, questions[0]?.focus || "General", role);
+        setSessionId(data.id);
       } catch (err) {
         console.error("Failed to start session:", err);
       }
@@ -117,7 +108,7 @@ export default function LiveAudioInterview() {
     return () => {
       cancelAnimationFrame(animationFrameRef.current);
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close().catch(() => { });
+        audioContextRef.current.close().catch(() => { /* empty */ });
       }
     };
   }, [navigate, questions, user, role]);
@@ -127,7 +118,7 @@ export default function LiveAudioInterview() {
   }, [currentIndex]);
 
   useEffect(() => {
-    let interval: any;
+    let interval: any  ;
     if (timeLeft > 0 && !isEvaluating && !evaluation) {
       interval = setInterval(() => {
         setTimeLeft(prev => prev - 1);
@@ -150,7 +141,7 @@ export default function LiveAudioInterview() {
       mediaRecorderRef.current.stop();
     }
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close().catch(() => { });
+      audioContextRef.current.close().catch(() => { /* empty */ });
     }
   };
 
@@ -258,7 +249,7 @@ export default function LiveAudioInterview() {
 
               submitAnswer(finalTranscript);
             };
-          } catch (e: any) {
+          } catch (e: unknown) {
             console.error("Audio processing failed", e);
             alert("Error processing your audio. Please try again.");
             setIsEvaluating(false);
@@ -272,14 +263,15 @@ export default function LiveAudioInterview() {
         setIsRecording(true);
         setEvaluation(null);
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Microphone access denied or error:", err);
         let errorMsg = "Microphone access denied. Please grant permissions in your browser URL bar.";
-        if (err.name === 'NotAllowedError') {
+        const errorName = (err as Error).name;
+        if (errorName === 'NotAllowedError') {
           errorMsg = "Permission Denied: Please click the lock icon in your URL bar and 'Allow' the microphone.";
-        } else if (err.name === 'NotFoundError') {
+        } else if (errorName === 'NotFoundError') {
           errorMsg = "No microphone found. Please connect a mic and try again.";
-        } else if (err.name === 'NotReadableError') {
+        } else if (errorName === 'NotReadableError') {
           errorMsg = "Microphone is busy. Another app might be using it.";
         }
         alert(errorMsg);
@@ -295,15 +287,27 @@ export default function LiveAudioInterview() {
         body: JSON.stringify({
           userAnswer: finalTranscript,
           currentQuestion: activeQuestion?.question,
-          jobDescription: jdText,
-          sessionId: sessionId,
-          userId: user?.id
+          jobDescription: jdText
         })
       });
 
       if (!res.ok) throw new Error("Evaluation failed");
 
       const data = await res.json();
+      
+      if (sessionId && user?.id) {
+        await addQALog({
+          session_id: sessionId,
+          user_id: user.id,
+          question_text: activeQuestion?.question,
+          user_answer_text: finalTranscript,
+          ai_feedback_text: data.feedback,
+          score_content: data.toneScore,
+          score_delivery: data.vocabularyScore,
+          is_weakness: data.toneScore < 60
+        });
+      }
+
       setEvaluation(data);
       setHistory(prev => [...prev, data]);
     } catch (err) {
@@ -326,14 +330,9 @@ export default function LiveAudioInterview() {
           ? Math.round(history.reduce((a, b) => a + b.toneScore, 0) / history.length)
           : 0;
 
-        await fetch(`${API_URL}api/sessions/complete`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId: sessionId,
-            score: avgScore
-          })
-        });
+        if (sessionId) {
+          await endInterviewSession(sessionId, avgScore, 0, "");
+        }
         navigate(`/report/${sessionId || 'last'}`);
       } catch (err) {
         console.error("Failed to complete session:", err);

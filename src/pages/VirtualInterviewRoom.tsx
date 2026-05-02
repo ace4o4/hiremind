@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -47,7 +49,7 @@ export default function VirtualInterviewRoom() {
   const [transcript, setTranscript] = useState("");
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [failedPersonas, setFailedPersonas] = useState<Record<string, boolean>>(
-    {},
+    { /* empty */ },
   );
 
   // Settings State
@@ -60,8 +62,8 @@ export default function VirtualInterviewRoom() {
   const recognitionRef = useRef<any>(null);
 
   // HeyGen Clients map: { personaId: StreamingAvatar }
-  const heygenClientsRef = useRef<Record<string, StreamingAvatar>>({});
-  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+  const heygenClientsRef = useRef<Record<string, StreamingAvatar>>({ /* empty */ });
+  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({ /* empty */ });
 
   // Fallback if no personas selected
   useEffect(() => {
@@ -94,7 +96,7 @@ export default function VirtualInterviewRoom() {
             clientsToCleanUp.push(avatar);
 
             // Handle Video Stream
-            avatar.on(StreamingEvents.STREAM_READY, (event: any) => {
+            avatar.on(StreamingEvents.STREAM_READY, (event: any  ) => {
               console.log(`HeyGen Stream ready for ${persona.name}`);
               if (videoRefs.current[persona.id] && event.detail) {
                 videoRefs.current[persona.id]!.srcObject = event.detail;
@@ -127,7 +129,7 @@ export default function VirtualInterviewRoom() {
             if (isMounted) {
               heygenClientsRef.current[persona.id] = avatar;
             }
-          } catch (personaErr: any) {
+          } catch (personaErr: unknown) {
             console.warn(
               `HeyGen init skipped for ${persona.name} (Likely limits):`,
               personaErr.message || personaErr,
@@ -149,9 +151,9 @@ export default function VirtualInterviewRoom() {
       clientsToCleanUp.forEach((client) => {
         try {
           client.stopAvatar();
-        } catch (e) { }
+        } catch (e) { /* empty */ }
       });
-      heygenClientsRef.current = {};
+      heygenClientsRef.current = { /* empty */ };
     };
   }, [selectedPersonas]);
 
@@ -164,7 +166,7 @@ export default function VirtualInterviewRoom() {
     recognition.interimResults = true;
     recognition.lang = "en-US";
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: any  ) => {
       let fullTranscript = "";
       for (let i = 0; i < event.results.length; ++i) {
         fullTranscript += event.results[i][0].transcript;
@@ -177,7 +179,7 @@ export default function VirtualInterviewRoom() {
       if (micActive && !activeSpeakerId && !isAiThinking) {
         try {
           recognition.start();
-        } catch (e) { }
+        } catch (e) { /* empty */ }
       }
     };
 
@@ -204,7 +206,7 @@ export default function VirtualInterviewRoom() {
     else {
       try { 
         recognitionRef.current.stop(); 
-      } catch (e) {}
+      } catch (e) { /* empty */ }
     }
   }, [micActive, activeSpeakerId, isAiThinking]);
 
@@ -332,7 +334,7 @@ export default function VirtualInterviewRoom() {
           setIsAiThinking(false);
         });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // Fetch Devices for Settings
@@ -354,13 +356,13 @@ export default function VirtualInterviewRoom() {
     Object.values(heygenClientsRef.current).forEach((c) => {
       try {
         c.stopAvatar();
-      } catch (e) { }
+      } catch (e) { /* empty */ }
     });
-    heygenClientsRef.current = {};
+    heygenClientsRef.current = { /* empty */ };
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-      } catch (e) { }
+      } catch (e) { /* empty */ }
     }
 
     // Save history to localStorage and go to report

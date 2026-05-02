@@ -21,8 +21,8 @@ async function test() {
         apiKey: SIMLI_API_KEY
       });
       console.log("SUCCESS:", res);
-    } catch (e: any) {
-      console.error(`FAILED for ${id}:`, e.message || e);
+    } catch (e: unknown) {
+      console.error(`FAILED for ${id}:`, (e as Error).message || e);
     }
   }
 }

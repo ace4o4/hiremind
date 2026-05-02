@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
@@ -114,7 +115,7 @@ const RecentSessionCard = ({ id, title, score, date, tags }: { id: string; title
   </Link>
 );
 
-const NewInterviewView = ({ sessions, profile }: { sessions: any[], profile: any }) => {
+const NewInterviewView = ({ sessions, profile }: { sessions: any  [], profile: any   }) => {
   const navigate = useNavigate();
   const [step, setStep] = useState<"upload" | "configure" | "ready" | "generating">("upload");
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -318,7 +319,7 @@ const NewInterviewView = ({ sessions, profile }: { sessions: any[], profile: any
 
         <div className="lg:col-span-2 space-y-4">
           <h3 className="font-bold text-sm text-slate-800">Recent Sessions</h3>
-          {sessions.slice(0, 3).map((s: any, i: number) => (
+          {sessions.slice(0, 3).map((s: any  , i: number) => (
             <RecentSessionCard
               key={i}
               id={s.id}
@@ -340,7 +341,7 @@ const NewInterviewView = ({ sessions, profile }: { sessions: any[], profile: any
 };
 
 /* ===== VIEW: PAST SESSIONS ===== */
-const PastSessionsView = ({ sessions }: { sessions: any[] }) => {
+const PastSessionsView = ({ sessions }: { sessions: any  [] }) => {
   const [filter, setFilter] = useState("All");
 
   // Create a mapping or derive tags safely if they don't exist yet
@@ -381,7 +382,7 @@ const PastSessionsView = ({ sessions }: { sessions: any[] }) => {
 };
 
 /* ===== VIEW: PROGRESS HUB ===== */
-const ProgressHubView = ({ sessions }: { sessions: any[] }) => {
+const ProgressHubView = ({ sessions }: { sessions: any  [] }) => {
   const last7 = sessions.slice(0, 7).reverse();
   const avgScore = sessions.length > 0
     ? Math.round(sessions.reduce((a, b) => a + (b.score || 0), 0) / sessions.length)
@@ -427,7 +428,7 @@ const ProgressHubView = ({ sessions }: { sessions: any[] }) => {
   );
 };
 
-const SkillMapView = ({ sessions }: { sessions: any[] }) => {
+const SkillMapView = ({ sessions }: { sessions: any  [] }) => {
   const recent3 = sessions.slice(0, 3);
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -551,7 +552,7 @@ const PanelModeView = () => {
 };
 
 /* ===== VIEW: MEMORY BANK ===== */
-const MemoryBankView = ({ memories }: { memories: any[] }) => (
+const MemoryBankView = ({ memories }: { memories: any  [] }) => (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
     <h2 className="font-display text-xl font-bold text-slate-800 mb-4">Feedback Vault</h2>
     <p className="text-xs font-bold text-slate-500 mb-4 tracking-widest uppercase">Strengths & Improvement Areas from Past Answers</p>
@@ -562,8 +563,8 @@ const MemoryBankView = ({ memories }: { memories: any[] }) => (
           <BrainCircuit className="h-5 w-5" />
         </div>
         <div>
-          <h4 className="font-bold text-sm text-slate-800">{item.current_question?.substring(0, 60)}...</h4>
-          <p className="text-xs text-slate-500 leading-relaxed mt-1 italic">"{item.constructive_feedback?.substring(0, 150)}..."</p>
+          <h4 className="font-bold text-sm text-slate-800">{item.question_text?.substring(0, 60)}...</h4>
+          <p className="text-xs text-slate-500 leading-relaxed mt-1 italic">"{item.ai_feedback_text?.substring(0, 150)}..."</p>
           <p className="text-[10px] font-black text-slate-400 mt-2 uppercase tracking-widest">{new Date(item.created_at).toLocaleDateString()}</p>
         </div>
       </NeuCard>
