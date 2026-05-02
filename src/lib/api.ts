@@ -1,8 +1,6 @@
 import { supabase } from "./supabase";
 import type { User } from "@supabase/supabase-js";
-
-export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/";
-
+export const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "/" : "http://localhost:3001/");
 // ---- Mock Data ----
 const MOCK_PROFILE = {
   id: "mock-user-id",
