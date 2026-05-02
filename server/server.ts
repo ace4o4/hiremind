@@ -38,7 +38,7 @@ app.use(express.json({ limit: '10mb' }));
 
 const port = process.env.PORT || 3001;
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const FAST_MODEL = 'llama-3.3-70b-versatile';
 const SMART_MODEL = 'llama-3.3-70b-versatile';
