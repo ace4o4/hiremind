@@ -568,4 +568,12 @@ app.listen(port, () => {
   console.log('  10. Interview Report       (Post-session Analysis)');
 });
 
+// --- Serve Frontend in Production ---
+const frontendDistPath = path.resolve(__dirname, '../../dist');
+app.use(express.static(frontendDistPath));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
+});
+
 export default app;

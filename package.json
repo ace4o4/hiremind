@@ -9,6 +9,8 @@
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "build:prod": "npm install && vite build && npm install --prefix server && npm run build --prefix server",
+    "start:prod": "node server/dist/server.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
