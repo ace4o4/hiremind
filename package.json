@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  
   "dependencies": {
     "@heygen/streaming-avatar": "^2.1.0",
     "@hookform/resolvers": "^3.10.0",
