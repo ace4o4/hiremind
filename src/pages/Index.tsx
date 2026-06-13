@@ -39,8 +39,8 @@ const Navbar = () => {
           <Link to="/auth" className="hidden md:inline-flex text-xs font-bold text-foreground hover:text-white transition-colors mr-2">
             Log in
           </Link>
-          <NeuButton variant="primary" className="hidden md:inline-flex shadow-xl">
-            <Link to="/dashboard">Get started</Link>
+          <NeuButton as={Link} to="/dashboard" variant="primary" className="hidden md:inline-flex shadow-xl">
+            Get started
           </NeuButton>
           <button className="md:hidden text-foreground" onClick={() => setOpen(!open)}>
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -108,8 +108,8 @@ const HeroSection = () => {
             transition={{ duration: 0.8, delay: 0.3 }}
             className="flex items-center gap-6"
           >
-            <NeuButton variant="primary" className="px-8 py-4 sm:px-10 sm:py-5 shadow-[0_15px_40px_-5px_rgba(75,123,229,0.3)]">
-              <Link to="/dashboard">Get Started</Link>
+            <NeuButton as={Link} to="/dashboard" variant="primary" className="px-8 py-4 sm:px-10 sm:py-5 shadow-[0_15px_40px_-5px_rgba(75,123,229,0.3)]">
+              Get Started
             </NeuButton>
 
             {/* Adjoining Graphic */}
@@ -573,10 +573,8 @@ const GetStartedCTA = () => (
         <p className="text-slate-500 font-medium text-sm md:text-base max-w-lg">
           Start practicing with AI-powered mock interviews and get actionable feedback to land your dream role.
         </p>
-        <NeuButton variant="primary" className="px-10 py-5 shadow-[0_15px_40px_-5px_rgba(75,123,229,0.3)] text-base">
-          <Link to="/dashboard" className="flex items-center gap-2">
-            Get Started <ArrowRight className="h-4 w-4" />
-          </Link>
+        <NeuButton as={Link} to="/dashboard" variant="primary" className="px-10 py-5 shadow-[0_15px_40px_-5px_rgba(75,123,229,0.3)] text-base flex items-center gap-2 justify-center">
+          Get Started <ArrowRight className="h-4 w-4" />
         </NeuButton>
       </motion.div>
     </div>

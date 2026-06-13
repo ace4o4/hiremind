@@ -307,11 +307,9 @@ const NewInterviewView = ({ sessions, profile }: { sessions: any  [], profile: a
                   </div>
                   <p className="mt-1 text-xs font-semibold text-slate-500">12 questions generated • 35 min estimated</p>
                 </NeuCard>
-                <Link to="/report" className="block w-full">
-                  <NeuButton variant="primary" className="w-full justify-center gap-2 py-4">
-                    <Play className="h-4 w-4" /> Mock Interview & View Report
-                  </NeuButton>
-                </Link>
+                <NeuButton as={Link} to="/report" variant="primary" className="w-full justify-center gap-2 py-4">
+                  <Play className="h-4 w-4" /> Mock Interview & View Report
+                </NeuButton>
               </motion.div>
             )}
           </NeuCard>
